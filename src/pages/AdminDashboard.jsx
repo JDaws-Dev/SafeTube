@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
@@ -34,9 +34,12 @@ export default function AdminDashboard() {
     session?.user?.email ? { email: session.user.email } : 'skip'
   );
 
-  // Active tab
+  // Active tab - consolidated from 8 to 4 tabs
   const [activeTab, setActiveTab] = useState('home');
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+
+  // Content tab has sub-tabs: 'add' or 'library'
+  const [contentSubTab, setContentSubTab] = useState('add');
 
   // Selected kid profile for adding content
   const [selectedKidId, setSelectedKidId] = useState(null);
@@ -46,6 +49,18 @@ export default function AdminDashboard() {
     api.kidProfiles.getKidProfiles,
     userData?._id ? { userId: userData._id } : 'skip'
   );
+
+  // Get pending requests count for badge
+  const pendingVideoRequests = useQuery(
+    api.videoRequests.getPendingRequests,
+    userData?._id ? { userId: userData._id } : 'skip'
+  );
+  const pendingChannelRequests = useQuery(
+    api.channelRequests.getPendingRequests,
+    userData?._id ? { userId: userData._id } : 'skip'
+  );
+
+  const pendingRequestsCount = (pendingVideoRequests?.length || 0) + (pendingChannelRequests?.length || 0);
 
   // Sync user when session is available but user doesn't exist yet
   useEffect(() => {
@@ -231,22 +246,10 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          {/* Desktop Tabs */}
+          {/* Desktop Tabs - Consolidated to 4 tabs */}
           <div className="hidden md:block">
             <nav className="flex gap-1 -mb-px">
-              <button
-                onClick={() => setActiveTab('setup')}
-                className={`${
-                  activeTab === 'setup'
-                    ? 'border-b-2 border-red-500 text-red-600'
-                    : 'text-gray-600 hover:text-gray-900 hover:border-gray-300 border-b-2 border-transparent'
-                } py-3 px-6 font-medium text-sm transition-all duration-200 flex items-center gap-2`}
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-                <span>Setup</span>
-              </button>
+              {/* Home Tab */}
               <button
                 onClick={() => setActiveTab('home')}
                 className={`${
@@ -260,23 +263,12 @@ export default function AdminDashboard() {
                 </svg>
                 <span>Home</span>
               </button>
+
+              {/* Content Tab (merged Add + Library) */}
               <button
-                onClick={() => setActiveTab('search')}
+                onClick={() => setActiveTab('content')}
                 className={`${
-                  activeTab === 'search'
-                    ? 'border-b-2 border-red-500 text-red-600'
-                    : 'text-gray-600 hover:text-gray-900 hover:border-gray-300 border-b-2 border-transparent'
-                } py-3 px-6 font-medium text-sm transition-all duration-200 flex items-center gap-2`}
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                </svg>
-                <span>Add Content</span>
-              </button>
-              <button
-                onClick={() => setActiveTab('library')}
-                className={`${
-                  activeTab === 'library'
+                  activeTab === 'content'
                     ? 'border-b-2 border-red-500 text-red-600'
                     : 'text-gray-600 hover:text-gray-900 hover:border-gray-300 border-b-2 border-transparent'
                 } py-3 px-6 font-medium text-sm transition-all duration-200 flex items-center gap-2`}
@@ -284,56 +276,42 @@ export default function AdminDashboard() {
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                 </svg>
-                <span>Library</span>
+                <span>Content</span>
               </button>
-              <button
-                onClick={() => setActiveTab('kids')}
-                className={`${
-                  activeTab === 'kids'
-                    ? 'border-b-2 border-red-500 text-red-600'
-                    : 'text-gray-600 hover:text-gray-900 hover:border-gray-300 border-b-2 border-transparent'
-                } py-3 px-6 font-medium text-sm transition-all duration-200 flex items-center gap-2`}
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                <span>Kids</span>
-              </button>
+
+              {/* Requests Tab */}
               <button
                 onClick={() => setActiveTab('requests')}
                 className={`${
                   activeTab === 'requests'
                     ? 'border-b-2 border-red-500 text-red-600'
                     : 'text-gray-600 hover:text-gray-900 hover:border-gray-300 border-b-2 border-transparent'
-                } py-3 px-6 font-medium text-sm transition-all duration-200 flex items-center gap-2`}
+                } py-3 px-6 font-medium text-sm transition-all duration-200 flex items-center gap-2 relative`}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                 </svg>
                 <span>Requests</span>
+                {pendingRequestsCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-5 h-5 flex items-center justify-center rounded-full font-medium">
+                    {pendingRequestsCount > 9 ? '9+' : pendingRequestsCount}
+                  </span>
+                )}
               </button>
+
+              {/* Account Tab (renamed from Settings) */}
               <button
-                onClick={() => setActiveTab('settings')}
+                onClick={() => setActiveTab('account')}
                 className={`${
-                  activeTab === 'settings'
+                  activeTab === 'account'
                     ? 'border-b-2 border-red-500 text-red-600'
                     : 'text-gray-600 hover:text-gray-900 hover:border-gray-300 border-b-2 border-transparent'
                 } ml-auto py-3 px-4 font-medium text-sm transition-all duration-200 flex items-center gap-2`}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
-                <span>Settings</span>
-              </button>
-              <button
-                onClick={handleLogout}
-                className="text-gray-600 hover:text-gray-900 py-3 px-4 font-medium text-sm transition-all duration-200 flex items-center gap-2"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                </svg>
-                <span>Logout</span>
+                <span>Account</span>
               </button>
             </nav>
           </div>
@@ -368,28 +346,15 @@ export default function AdminDashboard() {
             </button>
             <button
               onClick={() => {
-                setActiveTab('setup');
+                setActiveTab('account');
                 setShowMobileMenu(false);
               }}
               className="w-full px-4 py-3 text-left hover:bg-gray-100 transition flex items-center gap-3 text-gray-700"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
               </svg>
-              <span className="font-medium">Getting Started</span>
-            </button>
-            <button
-              onClick={() => {
-                setActiveTab('settings');
-                setShowMobileMenu(false);
-              }}
-              className="w-full px-4 py-3 text-left hover:bg-gray-100 transition flex items-center gap-3 text-gray-700"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-              <span className="font-medium">Settings</span>
+              <span className="font-medium">Account</span>
             </button>
             <button
               onClick={() => {
@@ -407,9 +372,9 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* Mobile Bottom Navigation */}
+      {/* Mobile Bottom Navigation - 4 tabs */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 safe-area-inset-bottom">
-        <div className="grid grid-cols-5">
+        <div className="grid grid-cols-4">
           {/* Home */}
           <button
             onClick={() => setActiveTab('home')}
@@ -424,32 +389,18 @@ export default function AdminDashboard() {
             {activeTab === 'home' && <div className="absolute top-0 left-0 right-0 h-0.5 bg-red-500"></div>}
           </button>
 
-          {/* Add */}
+          {/* Content (merged Add + Library) */}
           <button
-            onClick={() => setActiveTab('search')}
+            onClick={() => setActiveTab('content')}
             className={`relative flex flex-col items-center justify-center gap-0.5 py-2 transition-all ${
-              activeTab === 'search' ? 'bg-red-50' : ''
+              activeTab === 'content' ? 'bg-red-50' : ''
             }`}
           >
             <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={activeTab === 'search' ? 2.5 : 2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={activeTab === 'content' ? 2.5 : 2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
             </svg>
-            <span className={`text-[10px] ${activeTab === 'search' ? 'font-semibold text-red-600' : 'text-gray-600'}`}>Add</span>
-            {activeTab === 'search' && <div className="absolute top-0 left-0 right-0 h-0.5 bg-red-500"></div>}
-          </button>
-
-          {/* Library */}
-          <button
-            onClick={() => setActiveTab('library')}
-            className={`relative flex flex-col items-center justify-center gap-0.5 py-2 transition-all ${
-              activeTab === 'library' ? 'bg-red-50' : ''
-            }`}
-          >
-            <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={activeTab === 'library' ? 2.5 : 2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-            </svg>
-            <span className={`text-[10px] ${activeTab === 'library' ? 'font-semibold text-red-600' : 'text-gray-600'}`}>Library</span>
-            {activeTab === 'library' && <div className="absolute top-0 left-0 right-0 h-0.5 bg-red-500"></div>}
+            <span className={`text-[10px] ${activeTab === 'content' ? 'font-semibold text-red-600' : 'text-gray-600'}`}>Content</span>
+            {activeTab === 'content' && <div className="absolute top-0 left-0 right-0 h-0.5 bg-red-500"></div>}
           </button>
 
           {/* Requests (with badge) */}
@@ -463,70 +414,110 @@ export default function AdminDashboard() {
               <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={activeTab === 'requests' ? 2.5 : 2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
               </svg>
+              {pendingRequestsCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] w-4 h-4 flex items-center justify-center rounded-full font-medium">
+                  {pendingRequestsCount > 9 ? '9+' : pendingRequestsCount}
+                </span>
+              )}
             </div>
             <span className={`text-[10px] ${activeTab === 'requests' ? 'font-semibold text-red-600' : 'text-gray-600'}`}>Requests</span>
             {activeTab === 'requests' && <div className="absolute top-0 left-0 right-0 h-0.5 bg-red-500"></div>}
           </button>
 
-          {/* Kids */}
+          {/* Account */}
           <button
-            onClick={() => setActiveTab('kids')}
+            onClick={() => setActiveTab('account')}
             className={`relative flex flex-col items-center justify-center gap-0.5 py-2 transition-all ${
-              activeTab === 'kids' ? 'bg-red-50' : ''
+              activeTab === 'account' ? 'bg-red-50' : ''
             }`}
           >
             <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={activeTab === 'kids' ? 2.5 : 2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={activeTab === 'account' ? 2.5 : 2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
             </svg>
-            <span className={`text-[10px] ${activeTab === 'kids' ? 'font-semibold text-red-600' : 'text-gray-600'}`}>Kids</span>
-            {activeTab === 'kids' && <div className="absolute top-0 left-0 right-0 h-0.5 bg-red-500"></div>}
+            <span className={`text-[10px] ${activeTab === 'account' ? 'font-semibold text-red-600' : 'text-gray-600'}`}>Account</span>
+            {activeTab === 'account' && <div className="absolute top-0 left-0 right-0 h-0.5 bg-red-500"></div>}
           </button>
         </div>
       </nav>
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-24 md:pb-8">
-        {activeTab === 'setup' && (
-          <GettingStarted
-            userData={userData}
-            onNavigate={setActiveTab}
-          />
-        )}
+        {/* HOME TAB - includes kids management and getting started */}
         {activeTab === 'home' && (
           <HomeTab
             userData={userData}
             kidProfiles={kidProfiles}
+            userId={userData._id}
             onNavigate={setActiveTab}
             onCopyCode={copyFamilyCode}
             codeCopied={copiedCode}
           />
         )}
-        {activeTab === 'search' && (
-          <YouTubeSearch
-            userId={userData._id}
-            kidProfiles={kidProfiles}
-            selectedKidId={selectedKidId}
-            onSelectKid={setSelectedKidId}
-          />
+
+        {/* CONTENT TAB - Add and Library combined with sub-tabs */}
+        {activeTab === 'content' && (
+          <div className="space-y-6">
+            {/* Sub-tab toggle */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setContentSubTab('add')}
+                className={`px-4 py-2 rounded-lg font-medium transition ${
+                  contentSubTab === 'add'
+                    ? 'bg-gradient-to-r from-red-500 to-orange-500 text-white shadow-md'
+                    : 'bg-white text-gray-700 border border-gray-200 hover:border-red-300'
+                }`}
+              >
+                <span className="flex items-center gap-2">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                  Add
+                </span>
+              </button>
+              <button
+                onClick={() => setContentSubTab('library')}
+                className={`px-4 py-2 rounded-lg font-medium transition ${
+                  contentSubTab === 'library'
+                    ? 'bg-gradient-to-r from-red-500 to-orange-500 text-white shadow-md'
+                    : 'bg-white text-gray-700 border border-gray-200 hover:border-red-300'
+                }`}
+              >
+                <span className="flex items-center gap-2">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                  </svg>
+                  Library
+                </span>
+              </button>
+            </div>
+
+            {/* Content sub-tabs content */}
+            {contentSubTab === 'add' && (
+              <YouTubeSearch
+                userId={userData._id}
+                kidProfiles={kidProfiles}
+                selectedKidId={selectedKidId}
+                onSelectKid={setSelectedKidId}
+              />
+            )}
+            {contentSubTab === 'library' && (
+              <ContentLibrary
+                userId={userData._id}
+                kidProfiles={kidProfiles}
+                selectedKidId={selectedKidId}
+                onSelectKid={setSelectedKidId}
+              />
+            )}
+          </div>
         )}
-        {activeTab === 'library' && (
-          <ContentLibrary
-            userId={userData._id}
-            kidProfiles={kidProfiles}
-            selectedKidId={selectedKidId}
-            onSelectKid={setSelectedKidId}
-          />
-        )}
-        {activeTab === 'kids' && (
-          <KidsManager
-            userId={userData._id}
-            kidProfiles={kidProfiles}
-          />
-        )}
+
+        {/* REQUESTS TAB */}
         {activeTab === 'requests' && (
           <VideoRequests userId={userData._id} />
         )}
-        {activeTab === 'settings' && (
+
+        {/* ACCOUNT TAB */}
+        {activeTab === 'account' && (
           <Settings userData={userData} onLogout={handleLogout} />
         )}
       </main>
@@ -534,165 +525,308 @@ export default function AdminDashboard() {
   );
 }
 
-// Home tab component
-function HomeTab({ userData, kidProfiles, onNavigate, onCopyCode, codeCopied }) {
+// Home tab component - now includes Kids management
+function HomeTab({ userData, kidProfiles, userId, onNavigate, onCopyCode, codeCopied }) {
+  const [expandedKidId, setExpandedKidId] = useState(null);
+  const [showAddKid, setShowAddKid] = useState(false);
+  const [showGettingStarted, setShowGettingStarted] = useState(() => {
+    // Show getting started by default if no kid profiles
+    return !kidProfiles || kidProfiles.length === 0;
+  });
+
   return (
-    <div className="space-y-8">
-      {/* Welcome */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">
-          Welcome, {userData.name || 'Parent'}!
-        </h1>
-        <p className="text-gray-600">
-          Manage your kids' approved YouTube content from here.
-        </p>
+    <div className="space-y-6">
+      {/* Header with Welcome and Family Code */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">
+            Welcome, {userData.name || 'Parent'}!
+          </h1>
+          <p className="text-gray-600 text-sm">
+            Your command center for managing kids' YouTube access
+          </p>
+        </div>
+        <button
+          onClick={onCopyCode}
+          className="bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 px-4 py-2 rounded-xl transition flex items-center gap-2 shadow-md"
+        >
+          <span className="text-lg font-mono font-bold text-white tracking-wider">
+            {userData.familyCode}
+          </span>
+          {codeCopied ? (
+            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          ) : (
+            <svg className="w-5 h-5 text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+          )}
+        </button>
       </div>
 
-      {/* Family Code Card */}
-      <div className="bg-gradient-to-r from-red-500 to-orange-500 rounded-2xl p-6 shadow-lg">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h2 className="text-xl font-semibold text-white mb-1">Your Family Code</h2>
-            <p className="text-white/80 text-sm">
-              Give this code to your kids so they can access their approved videos
-            </p>
-          </div>
+      {/* Your Kids Section */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-gray-900">Your Kids</h2>
           <button
-            onClick={onCopyCode}
-            className="bg-white/20 backdrop-blur px-6 py-3 rounded-xl hover:bg-white/30 transition flex items-center gap-3 group"
+            onClick={() => setShowAddKid(true)}
+            className="bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1 transition shadow-sm"
           >
-            <span className="text-3xl font-mono font-bold text-white tracking-wider">
-              {userData.familyCode}
-            </span>
-            {codeCopied ? (
-              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-            ) : (
-              <svg className="w-6 h-6 text-white/60 group-hover:text-white transition" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-              </svg>
-            )}
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+            Add Kid
           </button>
         </div>
-        {codeCopied && (
-          <p className="text-white/90 text-sm mt-3 text-center md:text-right">Copied to clipboard!</p>
-        )}
-      </div>
 
-      {/* Quick Actions */}
-      <div className="grid md:grid-cols-3 gap-4">
-        <button
-          onClick={() => onNavigate('search')}
-          className="bg-white hover:bg-gray-50 rounded-xl p-6 text-left transition shadow-sm border border-gray-100 hover:shadow-md hover:border-red-200"
-        >
-          <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center mb-3">
-            <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-          </div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-1">Add Content</h3>
-          <p className="text-gray-500 text-sm">
-            Search YouTube and add channels or videos
-          </p>
-        </button>
-        <button
-          onClick={() => onNavigate('kids')}
-          className="bg-white hover:bg-gray-50 rounded-xl p-6 text-left transition shadow-sm border border-gray-100 hover:shadow-md hover:border-red-200"
-        >
-          <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center mb-3">
-            <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-          </div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-1">Manage Kids</h3>
-          <p className="text-gray-500 text-sm">
-            Add or edit kid profiles
-          </p>
-        </button>
-        <button
-          onClick={() => onNavigate('library')}
-          className="bg-white hover:bg-gray-50 rounded-xl p-6 text-left transition shadow-sm border border-gray-100 hover:shadow-md hover:border-red-200"
-        >
-          <div className="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center mb-3">
-            <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-            </svg>
-          </div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-1">View Library</h3>
-          <p className="text-gray-500 text-sm">
-            See all approved content
-          </p>
-        </button>
-      </div>
-
-      {/* Kid Profiles Overview */}
-      <div>
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">Kid Profiles</h2>
         {!kidProfiles || kidProfiles.length === 0 ? (
-          <div className="bg-white rounded-xl p-8 text-center shadow-sm border border-gray-100">
-            <div className="w-20 h-20 mx-auto mb-4 bg-orange-100 rounded-full flex items-center justify-center">
-              <svg className="w-10 h-10 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="p-8 text-center">
+            <div className="w-16 h-16 mx-auto mb-4 bg-orange-100 rounded-full flex items-center justify-center">
+              <svg className="w-8 h-8 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">No profiles yet</h3>
-            <p className="text-gray-500 mb-4">
-              Create a profile for each of your kids
-            </p>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">No kids yet</h3>
+            <p className="text-gray-500 text-sm mb-4">Add a profile for each child to get started</p>
             <button
-              onClick={() => onNavigate('kids')}
+              onClick={() => setShowAddKid(true)}
               className="bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white px-6 py-2 rounded-lg font-medium transition shadow-md"
             >
-              Add First Profile
+              Add Your First Kid
             </button>
           </div>
         ) : (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {kidProfiles.map((profile) => (
-              <div
-                key={profile._id}
-                className="bg-white rounded-xl p-4 flex items-center gap-4 shadow-sm border border-gray-100 hover:shadow-md transition"
-              >
-                <div
-                  className="w-14 h-14 rounded-full flex items-center justify-center text-white font-bold text-lg"
-                  style={{ backgroundColor: profile.color || '#ef4444' }}
-                >
-                  {profile.name.charAt(0).toUpperCase()}
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-900">{profile.name}</h3>
-                  <p className="text-gray-500 text-sm">
-                    Created {new Date(profile.createdAt).toLocaleDateString()}
-                  </p>
-                </div>
-              </div>
+          <div className="divide-y divide-gray-100">
+            {kidProfiles.map((kid) => (
+              <KidCard
+                key={kid._id}
+                kid={kid}
+                isExpanded={expandedKidId === kid._id}
+                onToggle={() => setExpandedKidId(expandedKidId === kid._id ? null : kid._id)}
+              />
             ))}
           </div>
         )}
       </div>
 
-      {/* Instructions */}
-      <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">How to set up</h2>
-        <ol className="space-y-3 text-gray-600">
-          <li className="flex gap-3">
-            <span className="flex-shrink-0 w-6 h-6 bg-gradient-to-r from-red-500 to-orange-500 rounded-full flex items-center justify-center text-white text-sm font-medium">1</span>
-            <span>Create a profile for each of your kids (tap "Kids" tab)</span>
-          </li>
-          <li className="flex gap-3">
-            <span className="flex-shrink-0 w-6 h-6 bg-gradient-to-r from-red-500 to-orange-500 rounded-full flex items-center justify-center text-white text-sm font-medium">2</span>
-            <span>Search for YouTube channels or videos and add them (tap "Add Content")</span>
-          </li>
-          <li className="flex gap-3">
-            <span className="flex-shrink-0 w-6 h-6 bg-gradient-to-r from-red-500 to-orange-500 rounded-full flex items-center justify-center text-white text-sm font-medium">3</span>
-            <span>Give your kids the family code: <strong className="font-mono text-red-600">{userData.familyCode}</strong></span>
-          </li>
-          <li className="flex gap-3">
-            <span className="flex-shrink-0 w-6 h-6 bg-gradient-to-r from-red-500 to-orange-500 rounded-full flex items-center justify-center text-white text-sm font-medium">4</span>
-            <span>Kids go to <Link to="/play" className="text-red-600 hover:underline font-medium">getsafetube.com/play</Link> and enter the code</span>
-          </li>
-        </ol>
+      {/* Quick Actions */}
+      <div className="grid grid-cols-2 gap-4">
+        <button
+          onClick={() => onNavigate('content')}
+          className="bg-white hover:bg-gray-50 rounded-xl p-4 text-left transition shadow-sm border border-gray-100 hover:shadow-md hover:border-red-200"
+        >
+          <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center mb-2">
+            <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+          </div>
+          <h3 className="font-semibold text-gray-900 text-sm">Add Content</h3>
+          <p className="text-gray-500 text-xs mt-0.5">Search & add videos</p>
+        </button>
+        <button
+          onClick={() => onNavigate('requests')}
+          className="bg-white hover:bg-gray-50 rounded-xl p-4 text-left transition shadow-sm border border-gray-100 hover:shadow-md hover:border-red-200"
+        >
+          <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center mb-2">
+            <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+            </svg>
+          </div>
+          <h3 className="font-semibold text-gray-900 text-sm">View Requests</h3>
+          <p className="text-gray-500 text-xs mt-0.5">Approve or deny</p>
+        </button>
+      </div>
+
+      {/* Getting Started (collapsible) */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <button
+          onClick={() => setShowGettingStarted(!showGettingStarted)}
+          className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+              <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            </div>
+            <h2 className="text-lg font-semibold text-gray-900">Getting Started</h2>
+          </div>
+          <svg className={`w-5 h-5 text-gray-400 transition-transform ${showGettingStarted ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+        {showGettingStarted && (
+          <div className="px-6 pb-6">
+            <ol className="space-y-3 text-gray-600 text-sm">
+              <li className="flex gap-3">
+                <span className="flex-shrink-0 w-6 h-6 bg-gradient-to-r from-red-500 to-orange-500 rounded-full flex items-center justify-center text-white text-xs font-medium">1</span>
+                <span>Add a profile for each of your kids above</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="flex-shrink-0 w-6 h-6 bg-gradient-to-r from-red-500 to-orange-500 rounded-full flex items-center justify-center text-white text-xs font-medium">2</span>
+                <span>Go to Content tab and search for YouTube channels/videos to approve</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="flex-shrink-0 w-6 h-6 bg-gradient-to-r from-red-500 to-orange-500 rounded-full flex items-center justify-center text-white text-xs font-medium">3</span>
+                <span>Share your family code <strong className="font-mono text-red-600">{userData.familyCode}</strong> with your kids</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="flex-shrink-0 w-6 h-6 bg-gradient-to-r from-red-500 to-orange-500 rounded-full flex items-center justify-center text-white text-xs font-medium">4</span>
+                <span>Kids visit <Link to="/play" className="text-red-600 hover:underline font-medium">getsafetube.com/play</Link> and enter the code</span>
+              </li>
+            </ol>
+          </div>
+        )}
+      </div>
+
+      {/* Add Kid Modal */}
+      {showAddKid && (
+        <AddKidModal userId={userId} onClose={() => setShowAddKid(false)} />
+      )}
+    </div>
+  );
+}
+
+// Kid Card with expandable details
+function KidCard({ kid, isExpanded, onToggle }) {
+  return (
+    <div>
+      {/* Main card row */}
+      <div
+        className="p-4 flex items-center gap-4 cursor-pointer hover:bg-gray-50 transition"
+        onClick={onToggle}
+      >
+        <div
+          className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg flex-shrink-0"
+          style={{ backgroundColor: kid.color || '#ef4444' }}
+        >
+          {kid.name.charAt(0).toUpperCase()}
+        </div>
+        <div className="flex-1 min-w-0">
+          <h3 className="font-semibold text-gray-900">{kid.name}</h3>
+          <p className="text-gray-500 text-sm truncate">
+            {kid.timeLimitMinutes ? `${kid.timeLimitMinutes} min daily limit` : 'No time limit'}
+          </p>
+        </div>
+        <svg className={`w-5 h-5 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </div>
+
+      {/* Expanded content */}
+      {isExpanded && (
+        <div className="px-4 pb-4 space-y-4">
+          <div className="bg-gray-50 rounded-xl p-4 space-y-3">
+            {/* Time Limit */}
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-600">Daily Time Limit</span>
+              <span className="text-sm font-medium text-gray-900">
+                {kid.timeLimitMinutes ? `${kid.timeLimitMinutes} minutes` : 'Unlimited'}
+              </span>
+            </div>
+            {/* Requests Toggle */}
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-600">Can Request Videos</span>
+              <span className={`text-sm font-medium ${kid.canRequest !== false ? 'text-green-600' : 'text-gray-400'}`}>
+                {kid.canRequest !== false ? 'Yes' : 'No'}
+              </span>
+            </div>
+            {/* PIN */}
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-600">PIN Protection</span>
+              <span className={`text-sm font-medium ${kid.pin ? 'text-green-600' : 'text-gray-400'}`}>
+                {kid.pin ? 'Enabled' : 'None'}
+              </span>
+            </div>
+          </div>
+          {/* Edit button placeholder - links to full KidsManager */}
+          <button className="w-full py-2 text-sm text-red-600 hover:text-red-700 font-medium">
+            Edit Profile Settings →
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Add Kid Modal
+function AddKidModal({ userId, onClose }) {
+  const [name, setName] = useState('');
+  const [color, setColor] = useState('#ef4444');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const createKidProfile = useMutation(api.kidProfiles.createKidProfile);
+
+  const colors = [
+    '#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899'
+  ];
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!name.trim()) return;
+
+    setIsSubmitting(true);
+    try {
+      await createKidProfile({
+        userId,
+        name: name.trim(),
+        color,
+      });
+      onClose();
+    } catch (err) {
+      console.error('Failed to create profile:', err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
+        <h2 className="text-xl font-bold text-gray-900 mb-4">Add Kid Profile</h2>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Enter kid's name"
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent"
+              autoFocus
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Color</label>
+            <div className="flex gap-2">
+              {colors.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setColor(c)}
+                  className={`w-8 h-8 rounded-full transition ${color === c ? 'ring-2 ring-offset-2 ring-gray-400' : ''}`}
+                  style={{ backgroundColor: c }}
+                />
+              ))}
+            </div>
+          </div>
+          <div className="flex gap-3 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={!name.trim() || isSubmitting}
+              className="flex-1 px-4 py-3 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 disabled:from-gray-300 disabled:to-gray-400 text-white rounded-xl font-medium transition"
+            >
+              {isSubmitting ? 'Adding...' : 'Add Kid'}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
