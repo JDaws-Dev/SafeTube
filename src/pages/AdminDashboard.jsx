@@ -5,12 +5,10 @@ import { api } from '../../convex/_generated/api';
 import { signOut, useSession } from '../lib/auth-client';
 
 // Components
-import KidsDashboard from '../components/admin/KidsDashboard';
+import KidsManager from '../components/admin/KidsManager';
 import YouTubeSearch from '../components/admin/YouTubeSearch';
 import ContentLibrary from '../components/admin/ContentLibrary';
-import WatchHistory from '../components/admin/WatchHistory';
 import VideoRequests from '../components/admin/VideoRequests';
-import TimeLimits from '../components/admin/TimeLimits';
 import Settings from '../components/admin/Settings';
 import GettingStarted from '../components/admin/GettingStarted';
 
@@ -520,22 +518,13 @@ export default function AdminDashboard() {
           />
         )}
         {activeTab === 'kids' && (
-          <KidsDashboard
+          <KidsManager
             userId={userData._id}
             kidProfiles={kidProfiles}
           />
         )}
         {activeTab === 'requests' && (
           <VideoRequests userId={userData._id} />
-        )}
-        {activeTab === 'history' && (
-          <WatchHistory
-            userId={userData._id}
-            kidProfiles={kidProfiles}
-          />
-        )}
-        {activeTab === 'limits' && (
-          <TimeLimits userId={userData._id} />
         )}
         {activeTab === 'settings' && (
           <Settings userData={userData} onLogout={handleLogout} />
