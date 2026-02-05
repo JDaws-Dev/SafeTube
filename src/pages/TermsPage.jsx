@@ -24,7 +24,7 @@ export default function TermsPage() {
       {/* Content */}
       <main className="container mx-auto px-6 py-12 max-w-3xl">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Terms of Service</h1>
-        <p className="text-gray-500 mb-8">Last updated: December 16, 2024</p>
+        <p className="text-gray-500 mb-8">Last updated: January 14, 2025</p>
 
         <div className="prose prose-gray max-w-none space-y-6">
           <section>
@@ -128,8 +128,8 @@ export default function TermsPage() {
             <h2 className="text-xl font-semibold text-gray-900 mb-3">10. Contact</h2>
             <p className="text-gray-600 leading-relaxed">
               For questions about these Terms of Service, please contact us at{' '}
-              <a href="mailto:jeremiah@getsafetunes.com" className="text-red-500 hover:text-red-600">
-                jeremiah@getsafetunes.com
+              <a href="mailto:jeremiah@getsafetube.com" className="text-red-500 hover:text-red-600">
+                jeremiah@getsafetube.com
               </a>
             </p>
           </section>

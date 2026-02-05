@@ -30,9 +30,9 @@ export default function KidsDashboard({ userId, kidProfiles }) {
     userId ? { userId, limit: 10 } : 'skip'
   );
 
-  // Get time limits for all kids
+  // Get time limits for all kids (includes watched time today)
   const allTimeLimits = useQuery(
-    api.timeLimits.getAllTimeLimits,
+    api.timeLimits.getTimeLimitsForUser,
     userId ? { userId } : 'skip'
   );
 
@@ -109,15 +109,21 @@ export default function KidsDashboard({ userId, kidProfiles }) {
           ) : (
             <div className="grid md:grid-cols-2 gap-4">
               {kidProfiles.map((kid) => {
-                const timeLimit = allTimeLimits?.find(t => t.kidProfileId === kid._id);
+                const timeLimitData = allTimeLimits?.find(t => t.kidProfileId === kid._id);
                 const kidHistory = recentHistory?.filter(h => h.kidProfileId === kid._id) || [];
                 const hasRecentWatch = kidHistory.length > 0;
                 const lastWatch = hasRecentWatch ? kidHistory[0] : null;
 
+                // Calculate remaining time
+                const dailyLimit = timeLimitData?.limit?.dailyLimitMinutes || 0;
+                const watchedToday = timeLimitData?.watchedMinutesToday || 0;
+                const remainingMinutes = dailyLimit > 0 ? Math.max(0, dailyLimit - watchedToday) : null;
+                const isLimitReached = dailyLimit > 0 && remainingMinutes === 0;
+
                 return (
                   <div
                     key={kid._id}
-                    className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 hover:shadow-md transition"
+                    className={`bg-white rounded-xl p-5 shadow-sm border hover:shadow-md transition ${isLimitReached ? 'border-red-300' : 'border-gray-100'}`}
                   >
                     <div className="flex items-start gap-3 sm:gap-4">
                       {/* Avatar */}
@@ -129,21 +135,37 @@ export default function KidsDashboard({ userId, kidProfiles }) {
                       <div className="flex-1 min-w-0">
                         <h4 className="font-semibold text-gray-900 text-base sm:text-lg truncate">{kid.name}</h4>
 
-                        {/* Time Limit Status */}
+                        {/* Time Remaining Status */}
                         <div className="mt-1 sm:mt-2 flex items-center gap-2">
-                          <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className={`w-4 h-4 flex-shrink-0 ${isLimitReached ? 'text-red-500' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
-                          {timeLimit ? (
-                            <span className="text-xs sm:text-sm text-gray-600">
-                              {timeLimit.dailyLimitMinutes > 0
-                                ? `${Math.floor(timeLimit.dailyLimitMinutes / 60)}h ${timeLimit.dailyLimitMinutes % 60}m daily`
-                                : 'Unlimited'}
+                          {dailyLimit > 0 ? (
+                            <span className={`text-xs sm:text-sm ${isLimitReached ? 'text-red-600 font-medium' : 'text-gray-600'}`}>
+                              {isLimitReached ? (
+                                'Limit reached!'
+                              ) : (
+                                <>
+                                  <span className="font-medium text-green-600">
+                                    {remainingMinutes >= 60
+                                      ? `${Math.floor(remainingMinutes / 60)}h ${remainingMinutes % 60}m`
+                                      : `${remainingMinutes}m`}
+                                  </span>
+                                  {' '}remaining today
+                                </>
+                              )}
                             </span>
                           ) : (
-                            <span className="text-xs sm:text-sm text-gray-400">No limit set</span>
+                            <span className="text-xs sm:text-sm text-gray-400">Unlimited</span>
                           )}
                         </div>
+
+                        {/* Daily Limit Info (smaller) */}
+                        {dailyLimit > 0 && (
+                          <div className="mt-0.5 text-xs text-gray-400">
+                            Daily limit: {Math.floor(dailyLimit / 60)}h {dailyLimit % 60}m • Watched: {watchedToday}m
+                          </div>
+                        )}
 
                         {/* Content Settings */}
                         <div className="mt-1 flex flex-wrap items-center gap-2 sm:gap-3 text-xs">

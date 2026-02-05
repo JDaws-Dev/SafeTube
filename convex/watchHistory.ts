@@ -82,16 +82,18 @@ export const getWatchHistoryForUser = query({
         .query("watchHistory")
         .withIndex("by_kid_recent", (q) => q.eq("kidProfileId", profile._id))
         .order("desc")
-        .take(Math.ceil(limit / kidProfiles.length)); // Distribute limit across kids
+        .take(Math.ceil((limit * 2) / kidProfiles.length)); // Fetch extra to account for filtered items
 
-      // Add kid profile info to each entry
+      // Add kid profile info to each entry, filtering out "Unknown Channel" entries
       allHistory.push(
-        ...history.map((h) => ({
-          ...h,
-          kidName: profile.name,
-          kidIcon: profile.icon,
-          kidColor: profile.color,
-        }))
+        ...history
+          .filter((h) => h.channelTitle !== "Unknown Channel")
+          .map((h) => ({
+            ...h,
+            kidName: profile.name,
+            kidIcon: profile.icon,
+            kidColor: profile.color,
+          }))
       );
     }
 
@@ -215,15 +217,59 @@ export const getRecentHistory = query({
         .query("watchHistory")
         .withIndex("by_kid_recent", (q) => q.eq("kidProfileId", profile._id))
         .order("desc")
-        .take(limit);
+        .take(limit * 2); // Fetch extra to account for filtered items
 
-      allHistory.push(...history);
+      // Filter out "Unknown Channel" entries
+      allHistory.push(...history.filter(h => h.channelTitle !== "Unknown Channel"));
     }
 
     // Sort by watchedAt and limit
     return allHistory
       .sort((a, b) => b.watchedAt - a.watchedAt)
       .slice(0, limit);
+  },
+});
+
+// Remove watch history entries with "Unknown Channel" (cleanup bad data)
+export const removeUnknownChannelHistory = mutation({
+  args: {
+    kidProfileId: v.id("kidProfiles"),
+  },
+  handler: async (ctx, args) => {
+    const history = await ctx.db
+      .query("watchHistory")
+      .withIndex("by_kid_recent", (q) => q.eq("kidProfileId", args.kidProfileId))
+      .filter((q) => q.eq(q.field("channelTitle"), "Unknown Channel"))
+      .collect();
+
+    for (const h of history) {
+      await ctx.db.delete(h._id);
+    }
+
+    return { deleted: history.length };
+  },
+});
+
+// Remove watch history for a specific video (called when video is removed from library)
+export const removeVideoFromHistory = mutation({
+  args: {
+    kidProfileId: v.id("kidProfiles"),
+    videoId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // Find all watch history entries for this video
+    const history = await ctx.db
+      .query("watchHistory")
+      .withIndex("by_kid_recent", (q) => q.eq("kidProfileId", args.kidProfileId))
+      .filter((q) => q.eq(q.field("videoId"), args.videoId))
+      .collect();
+
+    // Delete them all
+    for (const h of history) {
+      await ctx.db.delete(h._id);
+    }
+
+    return { deleted: history.length };
   },
 });
 

@@ -24,7 +24,7 @@ export default function PrivacyPage() {
       {/* Content */}
       <main className="container mx-auto px-6 py-12 max-w-3xl">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Privacy Policy</h1>
-        <p className="text-gray-500 mb-8">Last updated: December 16, 2024</p>
+        <p className="text-gray-500 mb-8">Last updated: January 14, 2025</p>
 
         <div className="prose prose-gray max-w-none space-y-6">
           <section>
@@ -104,7 +104,7 @@ export default function PrivacyPage() {
             <h2 className="text-xl font-semibold text-gray-900 mb-3">Your Rights</h2>
             <p className="text-gray-600 leading-relaxed">
               You have the right to access, update, or delete your account and all associated data at any time.
-              Contact us at <a href="mailto:jeremiah@getsafetunes.com" className="text-red-500 hover:text-red-600">jeremiah@getsafetunes.com</a> to
+              Contact us at <a href="mailto:jeremiah@getsafetube.com" className="text-red-500 hover:text-red-600">jeremiah@getsafetube.com</a> to
               exercise these rights.
             </p>
           </section>
@@ -121,8 +121,8 @@ export default function PrivacyPage() {
             <h2 className="text-xl font-semibold text-gray-900 mb-3">Contact Us</h2>
             <p className="text-gray-600 leading-relaxed">
               If you have any questions about this Privacy Policy, please contact us at{' '}
-              <a href="mailto:jeremiah@getsafetunes.com" className="text-red-500 hover:text-red-600">
-                jeremiah@getsafetunes.com
+              <a href="mailto:jeremiah@getsafetube.com" className="text-red-500 hover:text-red-600">
+                jeremiah@getsafetube.com
               </a>
             </p>
           </section>

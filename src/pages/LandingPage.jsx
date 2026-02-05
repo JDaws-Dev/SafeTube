@@ -67,7 +67,7 @@ export default function LandingPage() {
         <div className="container mx-auto px-4 py-3">
           <div className="flex justify-between items-center">
             <Link to="/" className="flex items-center space-x-2">
-              <div className="w-9 h-9 bg-gradient-to-br from-cyan-500 to-teal-500 rounded-xl flex items-center justify-center">
+              <div className="w-9 h-9 bg-gradient-to-br from-red-500 to-orange-500 rounded-xl flex items-center justify-center">
                 <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -85,7 +85,7 @@ export default function LandingPage() {
               </Link>
               <Link
                 to="/signup"
-                className="bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-600 hover:to-teal-600 text-white px-3 sm:px-4 py-2 rounded-lg font-semibold transition text-xs sm:text-sm whitespace-nowrap shadow-sm"
+                className="bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white px-3 sm:px-4 py-2 rounded-lg font-semibold transition text-xs sm:text-sm whitespace-nowrap shadow-sm"
               >
                 Get Started
               </Link>
@@ -94,12 +94,12 @@ export default function LandingPage() {
         </div>
       </header>
 
-      {/* Hero - Dark gradient with teal/cyan accent for SafeTube identity */}
-      <section className="py-10 sm:py-16 bg-gradient-to-br from-gray-900 via-slate-800 to-gray-900">
+      {/* Hero - Red/orange gradient matching OG image */}
+      <section className="py-10 sm:py-16 bg-gradient-to-br from-red-600 to-orange-500">
         <div className="container mx-auto px-4">
           <div className="max-w-3xl mx-auto text-center">
             {/* Badge */}
-            <div className="inline-flex items-center gap-2 bg-cyan-500/20 text-cyan-300 px-4 py-2 rounded-full text-sm font-semibold mb-6 border border-cyan-500/30">
+            <div className="inline-flex items-center gap-2 bg-white/20 text-white px-4 py-2 rounded-full text-sm font-semibold mb-6 border border-white/30">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
               </svg>
@@ -109,32 +109,32 @@ export default function LandingPage() {
             {/* Headline */}
             <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-white mb-6 leading-tight">
               The YouTube Parental Dashboard <br className="hidden sm:block" />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-teal-400">That Actually Works</span>
+              <span className="text-white underline decoration-white/50">That Actually Works</span>
             </h1>
 
             {/* Subhead */}
-            <p className="text-lg sm:text-xl md:text-2xl text-gray-300 mb-6 sm:mb-8 max-w-2xl mx-auto px-2">
+            <p className="text-lg sm:text-xl md:text-2xl text-white/90 mb-6 sm:mb-8 max-w-2xl mx-auto px-2">
               You get a parent dashboard. Your kids get a safe YouTube player.
               You approve channels and videos, they can only watch what you've approved.
               No algorithm, no recommendations, no rabbit holes.
             </p>
 
             {/* Power benefit statement */}
-            <div className="flex flex-col sm:flex-row flex-wrap justify-center gap-2 sm:gap-x-6 text-xs sm:text-sm text-cyan-200 mb-6">
+            <div className="flex flex-col sm:flex-row flex-wrap justify-center gap-2 sm:gap-x-6 text-xs sm:text-sm text-white/90 mb-6">
               <span className="flex items-center justify-center gap-1">
-                <svg className="w-4 h-4 text-cyan-400" fill="currentColor" viewBox="0 0 20 20">
+                <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                 </svg>
                 They watch ONLY approved content
               </span>
               <span className="flex items-center justify-center gap-1">
-                <svg className="w-4 h-4 text-cyan-400" fill="currentColor" viewBox="0 0 20 20">
+                <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                 </svg>
                 You see what they search for
               </span>
               <span className="flex items-center justify-center gap-1">
-                <svg className="w-4 h-4 text-cyan-400" fill="currentColor" viewBox="0 0 20 20">
+                <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                 </svg>
                 No algorithm recommendations
@@ -145,30 +145,30 @@ export default function LandingPage() {
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-4">
               <Link
                 to="/signup"
-                className="w-full sm:w-auto bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-600 hover:to-teal-600 text-white px-8 py-4 rounded-xl font-bold text-lg transition shadow-lg shadow-cyan-500/25"
+                className="w-full sm:w-auto bg-white hover:bg-gray-100 text-red-600 px-8 py-4 rounded-xl font-bold text-lg transition shadow-lg"
               >
                 Get 7 Days Free — No Credit Card
               </Link>
             </div>
 
             {/* Micro-copy under CTA */}
-            <p className="text-gray-400 text-sm mb-6">Takes 5 minutes to set up. Cancel anytime.</p>
+            <p className="text-white/70 text-sm mb-6">Takes 5 minutes to set up. Cancel anytime.</p>
 
             {/* Trust line */}
-            <div className="flex flex-wrap items-center justify-center gap-2 text-sm text-gray-300 mb-4">
-              <svg className="w-5 h-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+            <div className="flex flex-wrap items-center justify-center gap-2 text-sm text-white/80 mb-4">
+              <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
               </svg>
               <span>COPPA Compliant</span>
-              <span className="text-gray-500">•</span>
+              <span className="text-white/50">•</span>
               <span>No Data Selling</span>
-              <span className="text-gray-500">•</span>
+              <span className="text-white/50">•</span>
               <span>Cancel Anytime</span>
             </div>
 
             {/* Kid access URL */}
-            <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-lg">
-              <span className="text-cyan-300">Kids access at</span>
+            <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-lg">
+              <span className="text-white/80">Kids access at</span>
               <span className="text-white font-mono font-bold">getsafetube.com/play</span>
             </div>
           </div>
@@ -176,7 +176,7 @@ export default function LandingPage() {
       </section>
 
       {/* Mobile Apps Coming Soon Banner */}
-      <section className="py-3 bg-gradient-to-r from-cyan-600 to-teal-600">
+      <section className="py-3 bg-gradient-to-r from-red-700 to-orange-600">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-center gap-3 text-center">
             {/* iOS Icon */}
@@ -196,6 +196,32 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Demo Video Section */}
+      <section className="py-12 sm:py-16 bg-gray-50">
+        <div className="container mx-auto px-4">
+          <div className="max-w-4xl mx-auto">
+            <h2 className="text-2xl sm:text-3xl font-bold text-center text-gray-900 mb-3">
+              See How It Works
+            </h2>
+            <p className="text-gray-600 text-center mb-8 max-w-2xl mx-auto">
+              Watch a quick demo of SafeTube in action - from parent setup to kid experience.
+            </p>
+
+            {/* Responsive YouTube Embed */}
+            <div className="relative w-full overflow-hidden rounded-2xl shadow-2xl bg-black" style={{ paddingBottom: '56.25%' }}>
+              <iframe
+                className="absolute top-0 left-0 w-full h-full"
+                src="https://www.youtube-nocookie.com/embed/yq6PRWWIEXs?rel=0&modestbranding=1"
+                title="SafeTube Demo - How to set up parental controls for YouTube"
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              ></iframe>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Product Screenshots Section */}
       <section className="py-16 bg-white">
         <div className="container mx-auto px-4">
@@ -209,9 +235,9 @@ export default function LandingPage() {
 
             <div className="grid md:grid-cols-2 gap-8 mb-12">
               {/* Parent Dashboard */}
-              <div className="bg-gradient-to-br from-cyan-50 to-teal-50 rounded-2xl p-6 border-2 border-cyan-200">
+              <div className="bg-gradient-to-br from-red-50 to-orange-50 rounded-2xl p-6 border-2 border-red-200">
                 <div className="mb-4">
-                  <span className="inline-block bg-gradient-to-r from-cyan-500 to-teal-500 text-white px-3 py-1 rounded-full text-sm font-bold mb-3">
+                  <span className="inline-block bg-gradient-to-r from-red-500 to-orange-500 text-white px-3 py-1 rounded-full text-sm font-bold mb-3">
                     PARENT DASHBOARD
                   </span>
                   <h3 className="text-2xl font-bold text-gray-900 mb-2">You Approve Channels & Videos</h3>
@@ -219,37 +245,70 @@ export default function LandingPage() {
                     Search YouTube. Approve entire channels for easy access, or pick individual videos for precise control. Review your kids' requests.
                   </p>
                 </div>
-                <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200 aspect-video flex items-center justify-center">
-                  <div className="text-center p-8">
-                    <div className="w-16 h-16 bg-gradient-to-br from-cyan-500 to-teal-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                      <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                      </svg>
+                <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
+                  {/* Mock Parent Dashboard UI */}
+                  <div className="bg-gray-100 px-3 py-2 border-b border-gray-200 flex items-center gap-2">
+                    <div className="flex gap-1.5">
+                      <div className="w-3 h-3 rounded-full bg-red-400"></div>
+                      <div className="w-3 h-3 rounded-full bg-yellow-400"></div>
+                      <div className="w-3 h-3 rounded-full bg-green-400"></div>
                     </div>
-                    <p className="text-gray-500">Parent Dashboard Screenshot</p>
+                    <div className="flex-1 bg-white rounded px-2 py-1 text-xs text-gray-400 text-center">getsafetube.com/admin</div>
+                  </div>
+                  <div className="p-4 space-y-3">
+                    {/* Search bar mock */}
+                    <div className="flex gap-2">
+                      <div className="flex-1 bg-gray-100 rounded-lg px-3 py-2 flex items-center gap-2">
+                        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        <span className="text-gray-400 text-sm">Search YouTube channels...</span>
+                      </div>
+                    </div>
+                    {/* Channel results mock */}
+                    <div className="space-y-2">
+                      {[
+                        { name: 'Mark Rober', subs: '26M', color: 'bg-blue-500' },
+                        { name: 'Dude Perfect', subs: '60M', color: 'bg-green-500' },
+                        { name: 'SmarterEveryDay', subs: '11M', color: 'bg-orange-500' },
+                      ].map((ch, i) => (
+                        <div key={i} className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg">
+                          <div className={`w-10 h-10 ${ch.color} rounded-full flex items-center justify-center text-white font-bold text-sm`}>
+                            {ch.name[0]}
+                          </div>
+                          <div className="flex-1">
+                            <p className="font-medium text-gray-900 text-sm">{ch.name}</p>
+                            <p className="text-gray-500 text-xs">{ch.subs} subscribers</p>
+                          </div>
+                          <button className="bg-red-500 text-white px-3 py-1 rounded-lg text-xs font-medium">
+                            Approve
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
                 <ul className="mt-4 space-y-2 text-sm text-gray-700">
                   <li className="flex items-start gap-2">
-                    <svg className="w-5 h-5 text-cyan-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                    <svg className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
                     <span>Search any YouTube channel or video</span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <svg className="w-5 h-5 text-cyan-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                    <svg className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
                     <span>Approve channels with one tap</span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <svg className="w-5 h-5 text-cyan-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                    <svg className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
                     <span>Set time limits per child</span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <svg className="w-5 h-5 text-cyan-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                    <svg className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
                     <span>See watch history and blocked searches</span>
@@ -268,15 +327,34 @@ export default function LandingPage() {
                     Your kids log in at getsafetube.com/play with a PIN. They can only browse and watch content you've approved. No algorithm, no rabbit holes.
                   </p>
                 </div>
-                <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200 aspect-video flex items-center justify-center">
-                  <div className="text-center p-8">
-                    <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                      <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
+                <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
+                  {/* Mock Kid Player UI */}
+                  <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-3 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
+                        <span className="text-white text-sm font-bold">E</span>
+                      </div>
+                      <span className="text-white font-medium text-sm">Emma's Videos</span>
                     </div>
-                    <p className="text-gray-500">Kid Player Screenshot</p>
+                    <div className="text-blue-200 text-xs">45m left today</div>
+                  </div>
+                  <div className="p-4">
+                    <p className="text-gray-500 text-xs uppercase font-semibold mb-3">Your Channels</p>
+                    <div className="grid grid-cols-3 gap-3">
+                      {[
+                        { name: 'Mark Rober', emoji: '🔬', color: 'bg-blue-100' },
+                        { name: 'Dude Perfect', emoji: '🏀', color: 'bg-green-100' },
+                        { name: 'Brave Wilderness', emoji: '🦎', color: 'bg-yellow-100' },
+                        { name: 'SciShow Kids', emoji: '🧪', color: 'bg-purple-100' },
+                        { name: 'Nat Geo Kids', emoji: '🌍', color: 'bg-orange-100' },
+                        { name: 'Numberblocks', emoji: '🔢', color: 'bg-pink-100' },
+                      ].map((ch, i) => (
+                        <div key={i} className={`${ch.color} rounded-lg p-2 text-center`}>
+                          <div className="text-2xl mb-1">{ch.emoji}</div>
+                          <p className="text-gray-700 text-xs font-medium truncate">{ch.name}</p>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
                 <ul className="mt-4 space-y-2 text-sm text-gray-700">
@@ -449,7 +527,7 @@ export default function LandingPage() {
       </section>
 
       {/* No Algorithm - Unique Feature */}
-      <section className="py-16 bg-gradient-to-br from-cyan-600 to-teal-600">
+      <section className="py-16 bg-gradient-to-br from-red-600 to-orange-500">
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto">
             <div className="grid md:grid-cols-2 gap-8 items-center">
@@ -460,7 +538,7 @@ export default function LandingPage() {
                 <h2 className="text-3xl sm:text-4xl font-bold mb-4">
                   No Algorithm. No Rabbit Holes.
                 </h2>
-                <p className="text-lg text-cyan-100 mb-6">
+                <p className="text-lg text-white/90 mb-6">
                   YouTube's algorithm is designed to keep kids watching—and it often leads them to concerning content. SafeTube eliminates the algorithm entirely.
                 </p>
                 <ul className="space-y-3">
@@ -486,7 +564,7 @@ export default function LandingPage() {
               </div>
               <div className="relative">
                 <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
-                  <p className="text-cyan-200 text-xs uppercase font-semibold mb-3 text-center">What your kid sees:</p>
+                  <p className="text-white/80 text-xs uppercase font-semibold mb-3 text-center">What your kid sees:</p>
                   <div className="space-y-3">
                     <div className="bg-white rounded-lg p-3 flex items-center gap-3">
                       <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
@@ -600,16 +678,16 @@ export default function LandingPage() {
 
           <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
             <div className="text-center p-6 bg-white rounded-2xl shadow-sm">
-              <div className="w-16 h-16 bg-gradient-to-r from-cyan-500 to-teal-500 rounded-2xl flex items-center justify-center mx-auto mb-5">
+              <div className="w-16 h-16 bg-gradient-to-r from-red-500 to-orange-500 rounded-2xl flex items-center justify-center mx-auto mb-5">
                 <span className="text-3xl font-bold text-white">1</span>
               </div>
               <h3 className="text-xl font-bold text-gray-900 mb-3">You Search & Approve</h3>
               <p className="text-gray-600 mb-4">
                 Search "Mark Rober" in your dashboard. See his channel. Tap "Approve". Done in seconds.
               </p>
-              <div className="bg-cyan-50 rounded-lg p-3 text-left">
-                <p className="text-cyan-800 text-sm font-medium">Example:</p>
-                <p className="text-cyan-600 text-sm">"I approved 20 channels in 5 minutes on my first day."</p>
+              <div className="bg-red-50 rounded-lg p-3 text-left">
+                <p className="text-red-800 text-sm font-medium">Example:</p>
+                <p className="text-red-600 text-sm">"I approved 20 channels in 5 minutes on my first day."</p>
               </div>
             </div>
 
@@ -688,7 +766,7 @@ export default function LandingPage() {
       </section>
 
       {/* Testimonials */}
-      <section className="py-16 bg-gradient-to-r from-cyan-600 to-teal-600">
+      <section className="py-16 bg-gradient-to-r from-red-600 to-orange-500">
         <div className="container mx-auto px-4">
           <div className="max-w-5xl mx-auto">
             <h2 className="text-2xl font-bold text-center text-white mb-8">What Parents Are Saying</h2>
@@ -705,7 +783,7 @@ export default function LandingPage() {
                 <p className="text-white italic mb-4">
                   "My son was going down rabbit holes of weird gaming videos. Now he has 30 channels he loves and I can actually relax when he's watching."
                 </p>
-                <p className="text-cyan-200 font-medium text-sm">— Sarah M., Mom of 2</p>
+                <p className="text-white/80 font-medium text-sm">— Sarah M., Mom of 2</p>
               </div>
 
               <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 border border-white/20">
@@ -719,7 +797,7 @@ export default function LandingPage() {
                 <p className="text-white italic mb-4">
                   "YouTube Kids was too babyish for my 10-year-old. SafeTube lets him watch real content creators that I've vetted. Perfect middle ground."
                 </p>
-                <p className="text-cyan-200 font-medium text-sm">— Mike R., Dad of 1, Ohio</p>
+                <p className="text-white/80 font-medium text-sm">— Mike R., Dad of 1, Ohio</p>
               </div>
 
               <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 border border-white/20">
@@ -733,7 +811,7 @@ export default function LandingPage() {
                 <p className="text-white italic mb-4">
                   "The time limits feature is amazing. No more 'just one more video' arguments. When time's up, it's up. My daughter actually respects it now."
                 </p>
-                <p className="text-cyan-200 font-medium text-sm">— Jennifer K., Mom of 3, Texas</p>
+                <p className="text-white/80 font-medium text-sm">— Jennifer K., Mom of 3, Texas</p>
               </div>
             </div>
           </div>
@@ -780,20 +858,20 @@ export default function LandingPage() {
                 <div
                   key={faq.id}
                   className={`rounded-xl shadow-sm overflow-hidden transition-all duration-200 ${
-                    faq.featured ? 'border-2 border-cyan-400' : 'border border-gray-200'
-                  } ${openFaq === faq.id ? (faq.featured ? 'bg-cyan-50' : 'bg-white') : 'bg-white'}`}
+                    faq.featured ? 'border-2 border-red-400' : 'border border-gray-200'
+                  } ${openFaq === faq.id ? (faq.featured ? 'bg-red-50' : 'bg-white') : 'bg-white'}`}
                 >
                   <button
                     onClick={() => setOpenFaq(openFaq === faq.id ? null : faq.id)}
                     className="w-full px-5 py-4 flex items-center justify-between text-left"
                   >
-                    <h3 className={`font-bold pr-4 ${faq.featured ? 'text-cyan-900' : 'text-gray-900'}`}>
+                    <h3 className={`font-bold pr-4 ${faq.featured ? 'text-red-900' : 'text-gray-900'}`}>
                       {faq.question}
                     </h3>
                     <svg
                       className={`w-5 h-5 flex-shrink-0 transition-transform duration-200 ${
                         openFaq === faq.id ? 'rotate-180' : ''
-                      } ${faq.featured ? 'text-cyan-600' : 'text-gray-500'}`}
+                      } ${faq.featured ? 'text-red-600' : 'text-gray-500'}`}
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -806,7 +884,7 @@ export default function LandingPage() {
                       openFaq === faq.id ? 'max-h-48 pb-4' : 'max-h-0'
                     }`}
                   >
-                    <p className={`px-5 ${faq.featured ? 'text-cyan-800' : 'text-gray-600'}`}>
+                    <p className={`px-5 ${faq.featured ? 'text-red-800' : 'text-gray-600'}`}>
                       {faq.answer}
                     </p>
                   </div>
@@ -827,10 +905,10 @@ export default function LandingPage() {
             </div>
 
             <div className="max-w-md mx-auto">
-              <div className="bg-gradient-to-br from-cyan-600 to-teal-600 rounded-2xl p-8 text-white shadow-xl">
+              <div className="bg-gradient-to-br from-red-600 to-orange-500 rounded-2xl p-8 text-white shadow-xl">
                 <div className="text-center mb-6">
                   <div className="text-5xl font-bold mb-1">$4.99</div>
-                  <div className="text-cyan-200">/month after trial</div>
+                  <div className="text-white/80">/month after trial</div>
                 </div>
 
                 <ul className="space-y-3 mb-8">
@@ -846,7 +924,7 @@ export default function LandingPage() {
 
                 <Link
                   to="/signup"
-                  className="block w-full bg-white text-cyan-600 hover:bg-gray-100 text-center py-4 rounded-xl font-bold text-lg transition"
+                  className="block w-full bg-white text-red-600 hover:bg-gray-100 text-center py-4 rounded-xl font-bold text-lg transition"
                 >
                   Get 7 Days Free
                 </Link>
@@ -872,7 +950,7 @@ export default function LandingPage() {
             </p>
             <Link
               to="/signup"
-              className="inline-block bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-600 hover:to-teal-600 text-white px-10 py-4 rounded-xl font-bold text-lg transition shadow-lg shadow-cyan-500/25"
+              className="inline-block bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white px-10 py-4 rounded-xl font-bold text-lg transition shadow-lg shadow-red-500/25"
             >
               Start 7-Day Free Trial
             </Link>

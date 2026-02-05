@@ -86,26 +86,48 @@ function ConfirmModal({ isOpen, title, message, onConfirm, onCancel }) {
   );
 }
 
-// Expandable Kid Card component
+// Toggle Switch component
+function Toggle({ enabled, onChange, color = 'green' }) {
+  const bgColor = color === 'red'
+    ? (enabled ? 'bg-red-500' : 'bg-gray-300')
+    : (enabled ? 'bg-green-500' : 'bg-gray-300');
+
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(!enabled)}
+      className={`relative w-11 h-6 rounded-full transition-colors ${bgColor}`}
+    >
+      <span
+        className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+          enabled ? 'translate-x-5' : 'translate-x-0'
+        }`}
+      />
+    </button>
+  );
+}
+
+// Expandable Kid Card component - simplified with inline editing
 function KidCard({ kid, userId, allTimeLimits, recentHistory, onDelete }) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [showTimeWindow, setShowTimeWindow] = useState(false);
+  const [showAllHistory, setShowAllHistory] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
 
-  // Profile form state
-  const [profileForm, setProfileForm] = useState({
+  // Combined form state for profile AND time limits
+  const [form, setForm] = useState({
     name: kid.name,
     color: kid.color || 'red',
     requestsEnabled: kid.requestsEnabled !== false,
-  });
-
-  // Time limit form state
-  const [timeLimitForm, setTimeLimitForm] = useState({
+    shortsEnabled: kid.shortsEnabled !== false,
+    videoPaused: kid.videoPaused === true,
     dailyLimitMinutes: 60,
     weekendLimitMinutes: undefined,
     allowedStartHour: undefined,
     allowedEndHour: undefined,
+    hasTimeLimit: false,
+    hasTimeWindow: false,
+    hasWeekendLimit: false,
   });
 
   const updateProfile = useMutation(api.kidProfiles.updateKidProfile);
@@ -115,89 +137,64 @@ function KidCard({ kid, userId, allTimeLimits, recentHistory, onDelete }) {
   // Get current time limit data
   const timeLimit = allTimeLimits?.find(t => t.kidProfileId === kid._id);
   const kidHistory = recentHistory?.filter(h => h.kidProfileId === kid._id) || [];
-  const lastWatch = kidHistory.length > 0 ? kidHistory[0] : null;
 
-  // Initialize time limit form when expanded
+  // Initialize form when expanded
   useEffect(() => {
-    if (isExpanded && timeLimit?.limit) {
-      setTimeLimitForm({
-        dailyLimitMinutes: timeLimit.limit.dailyLimitMinutes,
-        weekendLimitMinutes: timeLimit.limit.weekendLimitMinutes,
-        allowedStartHour: timeLimit.limit.allowedStartHour,
-        allowedEndHour: timeLimit.limit.allowedEndHour,
-      });
-      setShowTimeWindow(timeLimit.limit.allowedStartHour !== undefined);
-    } else if (isExpanded) {
-      setTimeLimitForm({
-        dailyLimitMinutes: 60,
-        weekendLimitMinutes: undefined,
-        allowedStartHour: undefined,
-        allowedEndHour: undefined,
-      });
-      setShowTimeWindow(false);
-    }
-  }, [isExpanded, timeLimit]);
-
-  // Reset profile form when not editing
-  useEffect(() => {
-    if (!isEditing) {
-      setProfileForm({
+    if (isExpanded) {
+      setForm({
         name: kid.name,
         color: kid.color || 'red',
         requestsEnabled: kid.requestsEnabled !== false,
+        shortsEnabled: kid.shortsEnabled !== false,
+        videoPaused: kid.videoPaused === true,
+        dailyLimitMinutes: timeLimit?.limit?.dailyLimitMinutes ?? 60,
+        weekendLimitMinutes: timeLimit?.limit?.weekendLimitMinutes,
+        allowedStartHour: timeLimit?.limit?.allowedStartHour,
+        allowedEndHour: timeLimit?.limit?.allowedEndHour,
+        hasTimeLimit: !!timeLimit?.limit,
+        hasTimeWindow: timeLimit?.limit?.allowedStartHour !== undefined,
+        hasWeekendLimit: timeLimit?.limit?.weekendLimitMinutes !== undefined,
       });
+      setHasChanges(false);
     }
-  }, [isEditing, kid]);
+  }, [isExpanded, kid, timeLimit]);
 
-  const handleSaveProfile = async () => {
-    if (!profileForm.name.trim()) return;
+  const updateForm = (updates) => {
+    setForm(prev => ({ ...prev, ...updates }));
+    setHasChanges(true);
+  };
+
+  const handleSave = async () => {
+    if (!form.name.trim()) return;
     setSaving(true);
     try {
+      // Save profile settings
       await updateProfile({
         profileId: kid._id,
-        name: profileForm.name.trim(),
+        name: form.name.trim(),
         icon: 'none',
-        color: profileForm.color,
-        requestsEnabled: profileForm.requestsEnabled,
+        color: form.color,
+        requestsEnabled: form.requestsEnabled,
+        shortsEnabled: form.shortsEnabled,
+        videoPaused: form.videoPaused,
       });
-      setIsEditing(false);
-    } catch (err) {
-      console.error('Failed to update profile:', err);
-    } finally {
-      setSaving(false);
-    }
-  };
 
-  const handleSaveTimeLimit = async () => {
-    setSaving(true);
-    try {
-      await setTimeLimit({
-        kidProfileId: kid._id,
-        dailyLimitMinutes: timeLimitForm.dailyLimitMinutes,
-        weekendLimitMinutes: timeLimitForm.weekendLimitMinutes,
-        allowedStartHour: showTimeWindow ? timeLimitForm.allowedStartHour : undefined,
-        allowedEndHour: showTimeWindow ? timeLimitForm.allowedEndHour : undefined,
-      });
-    } catch (err) {
-      console.error('Failed to save time limit:', err);
-    } finally {
-      setSaving(false);
-    }
-  };
+      // Save or delete time limits
+      if (form.hasTimeLimit) {
+        await setTimeLimit({
+          kidProfileId: kid._id,
+          dailyLimitMinutes: form.dailyLimitMinutes,
+          weekendLimitMinutes: form.hasWeekendLimit ? form.weekendLimitMinutes : undefined,
+          allowedStartHour: form.hasTimeWindow ? form.allowedStartHour : undefined,
+          allowedEndHour: form.hasTimeWindow ? form.allowedEndHour : undefined,
+        });
+      } else if (timeLimit?.limit) {
+        await deleteTimeLimit({ kidProfileId: kid._id });
+      }
 
-  const handleRemoveTimeLimit = async () => {
-    setSaving(true);
-    try {
-      await deleteTimeLimit({ kidProfileId: kid._id });
-      setTimeLimitForm({
-        dailyLimitMinutes: 60,
-        weekendLimitMinutes: undefined,
-        allowedStartHour: undefined,
-        allowedEndHour: undefined,
-      });
-      setShowTimeWindow(false);
+      setHasChanges(false);
     } catch (err) {
-      console.error('Failed to remove time limit:', err);
+      console.error('Failed to save:', err);
     } finally {
       setSaving(false);
     }
@@ -218,17 +215,16 @@ function KidCard({ kid, userId, allTimeLimits, recentHistory, onDelete }) {
             </div>
             {/* Info */}
             <div>
-              <h3 className="font-semibold text-gray-900">{kid.name}</h3>
-              <div className="flex items-center gap-3 mt-0.5 text-sm text-gray-500">
-                <span className="flex items-center gap-1">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  {timeLimit?.limit ? formatMinutes(timeLimit.limit.dailyLimitMinutes) : 'No limit'}
-                </span>
-                <span className={`px-1.5 py-0.5 rounded text-xs ${kid.requestsEnabled !== false ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
-                  {kid.requestsEnabled !== false ? 'Requests on' : 'Requests off'}
-                </span>
+              <div className="flex items-center gap-2">
+                <h3 className="font-semibold text-gray-900">{kid.name}</h3>
+                {kid.videoPaused && (
+                  <span className="px-1.5 py-0.5 bg-red-100 text-red-700 text-xs rounded font-medium">Paused</span>
+                )}
+              </div>
+              <div className="flex items-center gap-2 mt-0.5 text-sm text-gray-500">
+                <span>{timeLimit?.limit ? formatMinutes(timeLimit.limit.dailyLimitMinutes) : 'No limit'}</span>
+                <span>•</span>
+                <span>{kid.shortsEnabled !== false ? 'Shorts on' : 'Shorts off'}</span>
               </div>
             </div>
           </div>
@@ -244,254 +240,210 @@ function KidCard({ kid, userId, allTimeLimits, recentHistory, onDelete }) {
         </div>
       </div>
 
-      {/* Expanded Content */}
+      {/* Expanded Content - All settings inline */}
       {isExpanded && (
-        <div className="border-t border-gray-100">
-          {/* Profile Settings Section */}
-          <div className="p-4 border-b border-gray-100">
-            <div className="flex items-center justify-between mb-3">
-              <h4 className="font-medium text-gray-900 flex items-center gap-2">
-                <svg className="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-                Profile Settings
-              </h4>
-              {!isEditing && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); setIsEditing(true); }}
-                  className="text-sm text-red-600 hover:text-red-700 font-medium"
-                >
-                  Edit
-                </button>
-              )}
+        <div className="border-t border-gray-100 p-4 space-y-6">
+
+          {/* Profile Section */}
+          <div>
+            <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Profile</h4>
+
+            {/* Name */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+              <input
+                type="text"
+                value={form.name}
+                onChange={(e) => updateForm({ name: e.target.value })}
+                className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500"
+                maxLength={20}
+              />
             </div>
 
-            {isEditing ? (
-              <div className="space-y-4">
-                {/* Preview */}
-                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-lg ${getColorClass(profileForm.color)}`}>
-                    {profileForm.name ? profileForm.name.charAt(0).toUpperCase() : '?'}
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500">Preview</p>
-                    <p className="font-medium text-gray-900">{profileForm.name || "Kid's Name"}</p>
-                  </div>
-                </div>
-
-                {/* Name */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-                  <input
-                    type="text"
-                    value={profileForm.name}
-                    onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })}
-                    className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500"
-                    maxLength={20}
+            {/* Color */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Color</label>
+              <div className="flex flex-wrap gap-2">
+                {COLORS.map((colorOption) => (
+                  <button
+                    key={colorOption.id}
+                    type="button"
+                    onClick={() => updateForm({ color: colorOption.id })}
+                    className={`w-8 h-8 rounded-full ${colorOption.bg} transition-transform ${
+                      form.color === colorOption.id
+                        ? `ring-2 ${colorOption.ring} ring-offset-2 scale-110`
+                        : 'hover:scale-110'
+                    }`}
                   />
-                </div>
+                ))}
+              </div>
+            </div>
+          </div>
 
-                {/* Color */}
+          {/* Content Controls Section */}
+          <div>
+            <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Content Controls</h4>
+
+            <div className="space-y-3">
+              {/* Requests */}
+              <div className="flex items-center justify-between py-2">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Color</label>
-                  <div className="flex flex-wrap gap-2">
-                    {COLORS.map((colorOption) => (
+                  <p className="text-sm font-medium text-gray-900">Allow Requests</p>
+                  <p className="text-xs text-gray-500">Search and request new videos</p>
+                </div>
+                <Toggle
+                  enabled={form.requestsEnabled}
+                  onChange={(val) => updateForm({ requestsEnabled: val })}
+                />
+              </div>
+
+              {/* Shorts */}
+              <div className="flex items-center justify-between py-2">
+                <div>
+                  <p className="text-sm font-medium text-gray-900">Allow Shorts</p>
+                  <p className="text-xs text-gray-500">Videos under 60 seconds</p>
+                </div>
+                <Toggle
+                  enabled={form.shortsEnabled}
+                  onChange={(val) => updateForm({ shortsEnabled: val })}
+                />
+              </div>
+
+              {/* Video Paused - styled differently as it's a lockout */}
+              <div className="flex items-center justify-between py-2 px-3 bg-red-50 rounded-lg -mx-3">
+                <div>
+                  <p className="text-sm font-medium text-red-700">Pause All Videos</p>
+                  <p className="text-xs text-red-600/70">Temporarily block playback</p>
+                </div>
+                <Toggle
+                  enabled={form.videoPaused}
+                  onChange={(val) => updateForm({ videoPaused: val })}
+                  color="red"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Time Limits Section */}
+          <div>
+            <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Time Limits</h4>
+
+            {/* Enable time limit */}
+            <div className="flex items-center justify-between py-2 mb-3">
+              <div>
+                <p className="text-sm font-medium text-gray-900">Enable Daily Limit</p>
+                <p className="text-xs text-gray-500">Restrict daily watch time</p>
+              </div>
+              <Toggle
+                enabled={form.hasTimeLimit}
+                onChange={(val) => updateForm({ hasTimeLimit: val })}
+              />
+            </div>
+
+            {form.hasTimeLimit && (
+              <div className="pl-4 border-l-2 border-gray-200 space-y-4">
+                {/* Daily limit */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Daily Limit</label>
+                  <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                    {TIME_PRESETS.map((preset) => (
                       <button
-                        key={colorOption.id}
-                        type="button"
-                        onClick={() => setProfileForm({ ...profileForm, color: colorOption.id })}
-                        className={`w-8 h-8 rounded-full ${colorOption.bg} transition-transform ${
-                          profileForm.color === colorOption.id
-                            ? `ring-2 ${colorOption.ring} ring-offset-2 scale-110`
-                            : 'hover:scale-110'
+                        key={preset.value}
+                        onClick={() => updateForm({ dailyLimitMinutes: preset.value })}
+                        className={`px-2 py-1.5 rounded-lg text-xs font-medium transition ${
+                          form.dailyLimitMinutes === preset.value
+                            ? 'bg-red-500 text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                         }`}
-                      />
+                      >
+                        {preset.label}
+                      </button>
                     ))}
                   </div>
                 </div>
 
-                {/* Requests Toggle */}
-                <div className="flex items-center justify-between py-2">
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Allow Content Requests</label>
-                    <p className="text-xs text-gray-500">Let this kid search and request videos</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setProfileForm({ ...profileForm, requestsEnabled: !profileForm.requestsEnabled })}
-                    className={`relative w-11 h-6 rounded-full transition-colors ${
-                      profileForm.requestsEnabled ? 'bg-green-500' : 'bg-gray-300'
-                    }`}
-                  >
-                    <span
-                      className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
-                        profileForm.requestsEnabled ? 'translate-x-5' : 'translate-x-0'
-                      }`}
+                {/* Weekend limit */}
+                <div>
+                  <label className="flex items-center gap-2 cursor-pointer mb-2">
+                    <input
+                      type="checkbox"
+                      checked={form.hasWeekendLimit}
+                      onChange={(e) => updateForm({
+                        hasWeekendLimit: e.target.checked,
+                        weekendLimitMinutes: e.target.checked ? form.dailyLimitMinutes : undefined
+                      })}
+                      className="w-4 h-4 text-red-500 border-gray-300 rounded focus:ring-red-500"
                     />
-                  </button>
+                    <span className="text-sm text-gray-700">Different limit on weekends</span>
+                  </label>
+                  {form.hasWeekendLimit && (
+                    <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                      {TIME_PRESETS.map((preset) => (
+                        <button
+                          key={preset.value}
+                          onClick={() => updateForm({ weekendLimitMinutes: preset.value })}
+                          className={`px-2 py-1.5 rounded-lg text-xs font-medium transition ${
+                            form.weekendLimitMinutes === preset.value
+                              ? 'bg-orange-500 text-white'
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
+                        >
+                          {preset.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
-                {/* Actions */}
-                <div className="flex gap-2 pt-2">
-                  <button
-                    onClick={handleSaveProfile}
-                    disabled={saving || !profileForm.name.trim()}
-                    className="flex-1 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 disabled:from-gray-300 disabled:to-gray-400 text-white px-4 py-2 rounded-lg font-medium transition"
-                  >
-                    {saving ? 'Saving...' : 'Save'}
-                  </button>
-                  <button
-                    onClick={() => setIsEditing(false)}
-                    className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition"
-                  >
-                    Cancel
-                  </button>
+                {/* Time window */}
+                <div>
+                  <label className="flex items-center gap-2 cursor-pointer mb-2">
+                    <input
+                      type="checkbox"
+                      checked={form.hasTimeWindow}
+                      onChange={(e) => updateForm({
+                        hasTimeWindow: e.target.checked,
+                        allowedStartHour: e.target.checked ? 8 : undefined,
+                        allowedEndHour: e.target.checked ? 20 : undefined
+                      })}
+                      className="w-4 h-4 text-red-500 border-gray-300 rounded focus:ring-red-500"
+                    />
+                    <span className="text-sm text-gray-700">Only allow during certain hours</span>
+                  </label>
+                  {form.hasTimeWindow && (
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <select
+                        value={form.allowedStartHour ?? 8}
+                        onChange={(e) => updateForm({ allowedStartHour: parseInt(e.target.value) })}
+                        className="bg-gray-50 border border-gray-300 text-gray-900 rounded-lg px-2 py-1.5 text-sm focus:ring-red-500 focus:border-red-500"
+                      >
+                        {HOURS.map((h) => (
+                          <option key={h.value} value={h.value}>{h.label}</option>
+                        ))}
+                      </select>
+                      <span className="text-gray-500 text-sm">to</span>
+                      <select
+                        value={form.allowedEndHour ?? 20}
+                        onChange={(e) => updateForm({ allowedEndHour: parseInt(e.target.value) })}
+                        className="bg-gray-50 border border-gray-300 text-gray-900 rounded-lg px-2 py-1.5 text-sm focus:ring-red-500 focus:border-red-500"
+                      >
+                        {HOURS.map((h) => (
+                          <option key={h.value} value={h.value}>{h.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                 </div>
-              </div>
-            ) : (
-              <div className="text-sm text-gray-600">
-                <p>Name: <span className="font-medium text-gray-900">{kid.name}</span></p>
-                <p className="mt-1">Content Requests: <span className={kid.requestsEnabled !== false ? 'text-green-600' : 'text-gray-500'}>{kid.requestsEnabled !== false ? 'Enabled' : 'Disabled'}</span></p>
               </div>
             )}
           </div>
 
-          {/* Time Limits Section */}
-          <div className="p-4 border-b border-gray-100">
-            <h4 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
-              <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              Time Limits
-            </h4>
-
-            {/* Daily limit */}
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Daily Limit (Weekdays)</label>
-              <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-                {TIME_PRESETS.map((preset) => (
-                  <button
-                    key={preset.value}
-                    onClick={() => setTimeLimitForm(s => ({ ...s, dailyLimitMinutes: preset.value }))}
-                    className={`px-2 py-1.5 rounded-lg text-xs font-medium transition ${
-                      timeLimitForm.dailyLimitMinutes === preset.value
-                        ? 'bg-red-500 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    {preset.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Weekend limit toggle */}
-            <div className="mb-4">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={timeLimitForm.weekendLimitMinutes !== undefined}
-                  onChange={(e) => setTimeLimitForm(s => ({
-                    ...s,
-                    weekendLimitMinutes: e.target.checked ? s.dailyLimitMinutes : undefined,
-                  }))}
-                  className="w-4 h-4 text-red-500 border-gray-300 rounded focus:ring-red-500"
-                />
-                <span className="text-sm font-medium text-gray-700">Different limit on weekends</span>
-              </label>
-              {timeLimitForm.weekendLimitMinutes !== undefined && (
-                <div className="mt-2 ml-6 grid grid-cols-3 sm:grid-cols-6 gap-2">
-                  {TIME_PRESETS.map((preset) => (
-                    <button
-                      key={preset.value}
-                      onClick={() => setTimeLimitForm(s => ({ ...s, weekendLimitMinutes: preset.value }))}
-                      className={`px-2 py-1.5 rounded-lg text-xs font-medium transition ${
-                        timeLimitForm.weekendLimitMinutes === preset.value
-                          ? 'bg-orange-500 text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
-                    >
-                      {preset.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Time window toggle */}
-            <div className="mb-4">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={showTimeWindow}
-                  onChange={(e) => {
-                    setShowTimeWindow(e.target.checked);
-                    if (e.target.checked && timeLimitForm.allowedStartHour === undefined) {
-                      setTimeLimitForm(s => ({ ...s, allowedStartHour: 8, allowedEndHour: 20 }));
-                    }
-                  }}
-                  className="w-4 h-4 text-red-500 border-gray-300 rounded focus:ring-red-500"
-                />
-                <span className="text-sm font-medium text-gray-700">Restrict to specific hours</span>
-              </label>
-              {showTimeWindow && (
-                <div className="mt-2 ml-6 flex items-center gap-2 flex-wrap">
-                  <select
-                    value={timeLimitForm.allowedStartHour ?? 8}
-                    onChange={(e) => setTimeLimitForm(s => ({ ...s, allowedStartHour: parseInt(e.target.value) }))}
-                    className="bg-gray-50 border border-gray-300 text-gray-900 rounded-lg px-2 py-1.5 text-sm focus:ring-red-500 focus:border-red-500"
-                  >
-                    {HOURS.map((h) => (
-                      <option key={h.value} value={h.value}>{h.label}</option>
-                    ))}
-                  </select>
-                  <span className="text-gray-500 text-sm">to</span>
-                  <select
-                    value={timeLimitForm.allowedEndHour ?? 20}
-                    onChange={(e) => setTimeLimitForm(s => ({ ...s, allowedEndHour: parseInt(e.target.value) }))}
-                    className="bg-gray-50 border border-gray-300 text-gray-900 rounded-lg px-2 py-1.5 text-sm focus:ring-red-500 focus:border-red-500"
-                  >
-                    {HOURS.map((h) => (
-                      <option key={h.value} value={h.value}>{h.label}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-            </div>
-
-            {/* Save Time Limit */}
-            <div className="flex gap-2">
-              <button
-                onClick={handleSaveTimeLimit}
-                disabled={saving}
-                className="flex-1 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 disabled:from-gray-300 disabled:to-gray-400 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
-              >
-                {saving ? 'Saving...' : 'Save Time Limit'}
-              </button>
-              {timeLimit?.limit && (
-                <button
-                  onClick={handleRemoveTimeLimit}
-                  disabled={saving}
-                  className="px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg text-sm font-medium transition"
-                >
-                  Remove
-                </button>
-              )}
-            </div>
-          </div>
-
           {/* Recent Activity Section */}
-          <div className="p-4 border-b border-gray-100">
-            <h4 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
-              <svg className="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-              </svg>
-              Recent Activity
-            </h4>
-            {kidHistory.length > 0 ? (
+          {kidHistory.length > 0 && (
+            <div>
+              <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Recent Activity</h4>
               <div className="space-y-2">
-                {kidHistory.slice(0, 3).map((item, idx) => (
+                {(showAllHistory ? kidHistory : kidHistory.slice(0, 3)).map((item, idx) => (
                   <div key={idx} className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg">
                     {item.thumbnailUrl && (
                       <img
@@ -508,21 +460,35 @@ function KidCard({ kid, userId, allTimeLimits, recentHistory, onDelete }) {
                   </div>
                 ))}
                 {kidHistory.length > 3 && (
-                  <p className="text-xs text-gray-500 text-center">+{kidHistory.length - 3} more</p>
+                  <button
+                    onClick={() => setShowAllHistory(!showAllHistory)}
+                    className="w-full text-xs text-red-600 hover:text-red-700 font-medium py-1"
+                  >
+                    {showAllHistory ? 'Show less' : `+${kidHistory.length - 3} more`}
+                  </button>
                 )}
               </div>
-            ) : (
-              <p className="text-sm text-gray-500">No watch history yet</p>
-            )}
-          </div>
+            </div>
+          )}
 
-          {/* Delete Profile */}
-          <div className="p-4">
+          {/* Action Buttons */}
+          <div className="flex gap-3 pt-4 border-t border-gray-100">
+            <button
+              onClick={handleSave}
+              disabled={saving || !form.name.trim()}
+              className={`flex-1 py-2.5 rounded-lg font-medium transition ${
+                hasChanges
+                  ? 'bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white'
+                  : 'bg-gray-100 text-gray-500'
+              }`}
+            >
+              {saving ? 'Saving...' : hasChanges ? 'Save Changes' : 'No Changes'}
+            </button>
             <button
               onClick={() => onDelete(kid._id, kid.name)}
-              className="w-full text-sm text-red-600 hover:text-red-700 hover:bg-red-50 py-2 rounded-lg font-medium transition"
+              className="px-4 py-2.5 text-red-600 hover:bg-red-50 rounded-lg font-medium transition"
             >
-              Delete Profile
+              Delete
             </button>
           </div>
         </div>
@@ -536,7 +502,7 @@ export default function KidsManager({ userId, kidProfiles }) {
   const [isCreating, setIsCreating] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [confirmModal, setConfirmModal] = useState(null);
-  const [formData, setFormData] = useState({ name: '', color: 'red', requestsEnabled: true });
+  const [formData, setFormData] = useState({ name: '', color: 'red' });
 
   const createProfile = useMutation(api.kidProfiles.createKidProfile);
   const deleteProfile = useMutation(api.kidProfiles.deleteKidProfile);
@@ -547,24 +513,21 @@ export default function KidsManager({ userId, kidProfiles }) {
     userId ? { userId, limit: 50 } : 'skip'
   );
 
-  // Get time limits for all kids
   const allTimeLimits = useQuery(
     api.timeLimits.getAllTimeLimits,
     userId ? { userId } : 'skip'
   );
 
   const handleCreate = async () => {
-    if (!formData.name.trim()) return;
+    if (!formData.name.trim() || !userId) return;
     setIsLoading(true);
     try {
       await createProfile({
         userId,
         name: formData.name.trim(),
-        icon: 'none',
         color: formData.color,
-        requestsEnabled: formData.requestsEnabled,
       });
-      setFormData({ name: '', color: 'red', requestsEnabled: true });
+      setFormData({ name: '', color: 'red' });
       setIsCreating(false);
     } catch (err) {
       console.error('Failed to create profile:', err);
@@ -573,183 +536,134 @@ export default function KidsManager({ userId, kidProfiles }) {
     }
   };
 
-  const handleDelete = (profileId, profileName) => {
-    setConfirmModal({
-      title: 'Delete Profile',
-      message: `Delete ${profileName}'s profile? This will also delete all their approved content and watch history.`,
-      onConfirm: async () => {
-        try {
-          await deleteProfile({ profileId });
-        } catch (err) {
-          console.error('Failed to delete profile:', err);
-        }
-        setConfirmModal(null);
-      },
-    });
-  };
-
-  const startCreate = () => {
-    setIsCreating(true);
-    const randomColor = COLORS[Math.floor(Math.random() * COLORS.length)].id;
-    setFormData({ name: '', color: randomColor, requestsEnabled: true });
+  const handleDeleteConfirm = async () => {
+    if (!confirmModal) return;
+    setIsLoading(true);
+    try {
+      await deleteProfile({ profileId: confirmModal.id });
+      setConfirmModal(null);
+    } catch (err) {
+      console.error('Failed to delete profile:', err);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
         <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1">Kids</h2>
-          <p className="text-sm sm:text-base text-gray-600">Manage profiles, time limits, and settings for each kid</p>
+          <h2 className="text-lg font-semibold text-gray-900">Kid Profiles</h2>
+          <p className="text-sm text-gray-500">Manage profiles and settings for each child</p>
         </div>
         {!isCreating && (
           <button
-            onClick={startCreate}
-            className="bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white px-4 py-2 rounded-lg font-medium transition flex items-center justify-center gap-2 shadow-md"
+            onClick={() => setIsCreating(true)}
+            className="px-4 py-2 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white rounded-lg font-medium text-sm transition"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Add Kid
+            + Add Kid
           </button>
         )}
       </div>
 
-      {/* Create New Profile Form */}
-      {isCreating && (
-        <div className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-100">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Add New Kid</h3>
-
-          <div className="space-y-4">
-            {/* Preview */}
-            <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
-              <div className={`w-14 h-14 rounded-full flex items-center justify-center text-white font-bold text-xl shadow-md ${getColorClass(formData.color)}`}>
-                {formData.name ? formData.name.charAt(0).toUpperCase() : '?'}
+      <div className="p-4 space-y-4">
+        {/* Create new profile form */}
+        {isCreating && (
+          <div className="bg-gray-50 rounded-xl p-4 border-2 border-dashed border-gray-200">
+            <h3 className="font-medium text-gray-900 mb-4">New Kid Profile</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="Enter name"
+                  className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500"
+                  maxLength={20}
+                  autoFocus
+                />
               </div>
               <div>
-                <p className="text-sm text-gray-500">Preview</p>
-                <p className="font-semibold text-gray-900">{formData.name || "Kid's Name"}</p>
-              </div>
-            </div>
-
-            {/* Name */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="Kid's name"
-                className="w-full bg-white border border-gray-200 rounded-lg px-4 py-2.5 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                maxLength={20}
-                autoFocus
-              />
-            </div>
-
-            {/* Color */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Color</label>
-              <div className="flex flex-wrap gap-3">
-                {COLORS.map((colorOption) => (
-                  <button
-                    key={colorOption.id}
-                    type="button"
-                    onClick={() => setFormData({ ...formData, color: colorOption.id })}
-                    className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full ${colorOption.bg} transition-transform ${
-                      formData.color === colorOption.id
-                        ? `ring-2 ${colorOption.ring} ring-offset-2 scale-110 shadow-lg`
-                        : 'hover:scale-110'
-                    }`}
-                  />
-                ))}
-              </div>
-            </div>
-
-            {/* Content Settings */}
-            <div className="pt-4 border-t border-gray-100">
-              <h4 className="text-sm font-medium text-gray-900 mb-3">Content Settings</h4>
-
-              <div className="flex items-center justify-between py-2">
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Allow Content Requests</label>
-                  <p className="text-xs text-gray-500">Let this kid search and request videos</p>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Color</label>
+                <div className="flex flex-wrap gap-2">
+                  {COLORS.map((colorOption) => (
+                    <button
+                      key={colorOption.id}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, color: colorOption.id })}
+                      className={`w-8 h-8 rounded-full ${colorOption.bg} transition-transform ${
+                        formData.color === colorOption.id
+                          ? `ring-2 ${colorOption.ring} ring-offset-2 scale-110`
+                          : 'hover:scale-110'
+                      }`}
+                    />
+                  ))}
                 </div>
+              </div>
+              <div className="flex gap-2 pt-2">
                 <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, requestsEnabled: !formData.requestsEnabled })}
-                  className={`relative w-11 h-6 rounded-full transition-colors ${
-                    formData.requestsEnabled ? 'bg-green-500' : 'bg-gray-300'
-                  }`}
+                  onClick={handleCreate}
+                  disabled={isLoading || !formData.name.trim()}
+                  className="flex-1 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 disabled:from-gray-300 disabled:to-gray-400 text-white px-4 py-2 rounded-lg font-medium transition"
                 >
-                  <span
-                    className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
-                      formData.requestsEnabled ? 'translate-x-5' : 'translate-x-0'
-                    }`}
-                  />
+                  {isLoading ? 'Creating...' : 'Create Profile'}
+                </button>
+                <button
+                  onClick={() => {
+                    setIsCreating(false);
+                    setFormData({ name: '', color: 'red' });
+                  }}
+                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition"
+                >
+                  Cancel
                 </button>
               </div>
             </div>
+          </div>
+        )}
 
-            {/* Actions */}
-            <div className="flex gap-3 pt-2">
+        {/* Existing profiles */}
+        {kidProfiles && kidProfiles.length > 0 ? (
+          <div className="space-y-3">
+            {kidProfiles.map((kid) => (
+              <KidCard
+                key={kid._id}
+                kid={kid}
+                userId={userId}
+                allTimeLimits={allTimeLimits}
+                recentHistory={recentHistory}
+                onDelete={(id, name) => setConfirmModal({ id, name })}
+              />
+            ))}
+          </div>
+        ) : (
+          !isCreating && (
+            <div className="text-center py-8">
+              <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+                <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-1">No Kids Yet</h3>
+              <p className="text-gray-500 text-sm mb-4">Add a profile for each child to get started</p>
               <button
-                onClick={handleCreate}
-                disabled={isLoading || !formData.name.trim()}
-                className="flex-1 sm:flex-none bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed text-white px-6 py-2.5 rounded-lg font-medium transition shadow-md"
+                onClick={() => setIsCreating(true)}
+                className="px-4 py-2 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white rounded-lg font-medium text-sm transition"
               >
-                {isLoading ? 'Creating...' : 'Create Profile'}
-              </button>
-              <button
-                onClick={() => setIsCreating(false)}
-                className="flex-1 sm:flex-none bg-gray-100 hover:bg-gray-200 text-gray-700 px-6 py-2.5 rounded-lg font-medium transition"
-              >
-                Cancel
+                Add Your First Kid
               </button>
             </div>
-          </div>
-        </div>
-      )}
+          )
+        )}
+      </div>
 
-      {/* Kid Cards */}
-      {kidProfiles && kidProfiles.length > 0 ? (
-        <div className="space-y-4">
-          {kidProfiles.map((kid) => (
-            <KidCard
-              key={kid._id}
-              kid={kid}
-              userId={userId}
-              allTimeLimits={allTimeLimits}
-              recentHistory={recentHistory}
-              onDelete={handleDelete}
-            />
-          ))}
-        </div>
-      ) : !isCreating ? (
-        <div className="bg-white rounded-xl p-8 sm:p-12 text-center shadow-sm border border-gray-100">
-          <div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-4 bg-gradient-to-br from-red-500 to-orange-500 rounded-full flex items-center justify-center shadow-lg">
-            <svg className="w-8 h-8 sm:w-10 sm:h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
-            </svg>
-          </div>
-          <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">No kids yet</h3>
-          <p className="text-sm sm:text-base text-gray-500 mb-6">
-            Create a profile for each of your kids to get started
-          </p>
-          <button
-            onClick={startCreate}
-            className="bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white px-6 py-3 rounded-lg font-medium transition shadow-md"
-          >
-            Add First Kid
-          </button>
-        </div>
-      ) : null}
-
-      {/* Confirm Modal */}
+      {/* Delete confirmation modal */}
       <ConfirmModal
         isOpen={!!confirmModal}
-        title={confirmModal?.title}
-        message={confirmModal?.message}
-        onConfirm={confirmModal?.onConfirm}
+        title="Delete Profile?"
+        message={`Delete ${confirmModal?.name}'s profile? This will also delete all their approved content and watch history.`}
+        onConfirm={handleDeleteConfirm}
         onCancel={() => setConfirmModal(null)}
       />
     </div>

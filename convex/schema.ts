@@ -13,6 +13,7 @@ export default defineSchema({
     appleMusicAuthorized: v.optional(v.boolean()), // Apple Music authorization status
     appleMusicAuthDate: v.optional(v.number()), // When Apple Music was authorized
     globalHideArtwork: v.optional(v.boolean()), // Global toggle to hide all album artwork
+    timezone: v.optional(v.string()), // IANA timezone (e.g., "America/New_York")
     expoPushToken: v.optional(v.string()), // Expo push notification token
     onboardingCompleted: v.optional(v.boolean()), // Track if user finished onboarding
     subscriptionStatus: v.optional(v.string()), // "trial", "active", "cancelled", "expired"
@@ -23,7 +24,8 @@ export default defineSchema({
     createdAt: v.number(),
   })
     .index("by_email", ["email"])
-    .index("by_familyCode", ["familyCode"]),
+    .index("by_familyCode", ["familyCode"])
+    .index("by_subscription", ["subscriptionId"]),
 
   // Kid profiles - each kid has their own whitelist
   kidProfiles: defineTable({
@@ -41,6 +43,7 @@ export default defineSchema({
     musicPaused: v.optional(v.boolean()), // Legacy field for backwards compatibility
     color: v.string(), // Theme color
     shortsEnabled: v.optional(v.boolean()), // Allow Shorts videos (default true)
+    videoPaused: v.optional(v.boolean()), // If true, kid cannot watch videos (parent lockout)
     maxVideosPerChannel: v.optional(v.number()), // Limit feed videos per channel (default 5)
     requestsEnabled: v.optional(v.boolean()), // Allow kid to request content (default true)
     timeLimitEnabled: v.optional(v.boolean()), // Legacy field for backwards compatibility
@@ -76,6 +79,7 @@ export default defineSchema({
     duration: v.string(), // ISO 8601 duration
     durationSeconds: v.number(),
     madeForKids: v.boolean(),
+    isShort: v.optional(v.boolean()), // True if video is ≤60 seconds (YouTube Short)
     publishedAt: v.optional(v.string()),
     addedAt: v.number(),
   })
@@ -194,4 +198,35 @@ export default defineSchema({
     lastAccessedAt: v.number(),
   })
     .index("by_channel_id", ["channelId"]),
+
+  // YouTube Search Cache - stores YouTube API search results to reduce API quota usage
+  youtubeSearchCache: defineTable({
+    query: v.string(), // Normalized search query (lowercase, trimmed)
+    searchType: v.string(), // "channels" or "videos" or "channelVideos"
+    maxResults: v.optional(v.number()), // For deduplication (same query with different maxResults)
+    channelId: v.optional(v.string()), // For channelVideos searches
+    results: v.any(), // The cached search results array
+    cachedAt: v.number(), // Timestamp when cached
+    expiresAt: v.number(), // When cache expires
+    timesReused: v.number(), // How many times this cache entry was used
+    lastAccessedAt: v.number(), // Last time this cache was accessed
+  })
+    .index("by_query_type", ["query", "searchType"])
+    .index("by_query_type_max", ["query", "searchType", "maxResults"])
+    .index("by_channel_id", ["channelId", "searchType"])
+    .index("by_expires", ["expiresAt"]),
+
+  // Subscription events log - tracks Stripe webhook events for debugging
+  subscriptionEvents: defineTable({
+    email: v.string(),
+    eventType: v.string(), // e.g., "checkout.completed", "subscription.updated", "payment.failed"
+    subscriptionStatus: v.optional(v.string()),
+    stripeSubscriptionId: v.optional(v.string()),
+    stripeCustomerId: v.optional(v.string()),
+    eventData: v.optional(v.string()), // JSON string of additional event data
+    errorMessage: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_email", ["email"])
+    .index("by_created", ["createdAt"]),
 });

@@ -212,7 +212,7 @@ export default function OnboardingPage() {
                         value={kid.name}
                         onChange={(e) => updateKid(index, 'name', e.target.value)}
                         placeholder="Child's name"
-                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                        className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
                       />
 
                       {/* Color selection */}

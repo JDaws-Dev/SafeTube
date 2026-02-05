@@ -19,6 +19,10 @@ export const YOUTUBE_API_BASE_URL = 'https://www.googleapis.com/youtube/v3';
 // - videos.list: 1 unit per call
 // - playlistItems.list: 1 unit per call
 
+// IMPORTANT: Use the cached versions (searchChannelsCached, searchVideosCached, getChannelVideosCached)
+// instead of the direct API functions below to reduce quota usage.
+// Cached versions are available in YouTubeSearch.jsx component via Convex actions.
+
 /**
  * Search YouTube for channels
  */
@@ -155,14 +159,14 @@ export async function getChannelDetails(channelIds) {
 
 /**
  * Get video details by ID(s)
- * Includes embeddable status and content rating for filtering
+ * Includes embeddable status, content rating, and player info for dimensions
  */
 export async function getVideoDetails(videoIds) {
   if (!YOUTUBE_API_KEY || !videoIds) return [];
 
   const params = new URLSearchParams({
     key: YOUTUBE_API_KEY,
-    part: 'snippet,contentDetails,status',
+    part: 'snippet,contentDetails,status,player',
     id: videoIds,
   });
 
@@ -268,6 +272,10 @@ export async function getChannelVideos(channelId, maxVideos = 500) {
         const details = videoMap.get(videoId);
         const duration = details?.contentDetails?.duration || 'PT0S';
         const playability = checkVideoPlayability(details);
+        // Detect vertical video from player embed dimensions
+        const embedWidth = parseInt(details?.player?.embedWidth || '0', 10);
+        const embedHeight = parseInt(details?.player?.embedHeight || '0', 10);
+        const isVertical = embedWidth > 0 && embedHeight > 0 && embedHeight > embedWidth;
         return {
           videoId,
           title: item.snippet.title,
@@ -283,6 +291,7 @@ export async function getChannelVideos(channelId, maxVideos = 500) {
           publishedAt: item.snippet.publishedAt,
           embeddable: playability.embeddable,
           ageRestricted: playability.ageRestricted,
+          isVertical,
         };
       });
       allVideos.push(...batchVideos);
@@ -344,4 +353,57 @@ export function formatSubscribers(count) {
     return `${(num / 1000).toFixed(0)}K`;
   }
   return count;
+}
+
+/**
+ * Decode HTML entities in text
+ * e.g., "Charlie Kirk&#39;s" -> "Charlie Kirk's"
+ */
+export function decodeHtmlEntities(text) {
+  if (!text) return '';
+  const textarea = document.createElement('textarea');
+  textarea.innerHTML = text;
+  return textarea.value;
+}
+
+/**
+ * Format view count
+ * e.g., 1234567 -> "1.2M views"
+ */
+export function formatViewCount(count) {
+  if (!count) return '';
+  const num = parseInt(count, 10);
+  if (num >= 1000000) {
+    return `${(num / 1000000).toFixed(1)}M views`;
+  }
+  if (num >= 1000) {
+    return `${(num / 1000).toFixed(0)}K views`;
+  }
+  return `${count} views`;
+}
+
+/**
+ * Format relative time ago
+ * e.g., "2024-06-15T10:00:00Z" -> "9 months ago"
+ */
+export function formatTimeAgo(dateString) {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now - date;
+  const diffSeconds = Math.floor(diffMs / 1000);
+  const diffMinutes = Math.floor(diffSeconds / 60);
+  const diffHours = Math.floor(diffMinutes / 60);
+  const diffDays = Math.floor(diffHours / 24);
+  const diffWeeks = Math.floor(diffDays / 7);
+  const diffMonths = Math.floor(diffDays / 30);
+  const diffYears = Math.floor(diffDays / 365);
+
+  if (diffYears > 0) return `${diffYears} year${diffYears > 1 ? 's' : ''} ago`;
+  if (diffMonths > 0) return `${diffMonths} month${diffMonths > 1 ? 's' : ''} ago`;
+  if (diffWeeks > 0) return `${diffWeeks} week${diffWeeks > 1 ? 's' : ''} ago`;
+  if (diffDays > 0) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+  if (diffHours > 0) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+  if (diffMinutes > 0) return `${diffMinutes} minute${diffMinutes > 1 ? 's' : ''} ago`;
+  return 'Just now';
 }

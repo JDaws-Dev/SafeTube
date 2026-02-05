@@ -17,6 +17,7 @@ export default function KidPlayer() {
   const [codeInput, setCodeInput] = useState('');
   const [selectedProfile, setSelectedProfile] = useState(null);
   const [playingVideo, setPlayingVideo] = useState(null);
+  const [playContext, setPlayContext] = useState(null); // { shortsList, isFromChannel }
   const [error, setError] = useState('');
   const [showTimeLimitModal, setShowTimeLimitModal] = useState(false);
   const [timeLimitInfo, setTimeLimitInfo] = useState(null);
@@ -87,7 +88,15 @@ export default function KidPlayer() {
     setPlayingVideo(null);
   };
 
-  const handlePlayVideo = (video) => {
+  // handlePlayVideo now accepts optional context for shorts navigation
+  // context: { shortsList: Video[], isFromChannel: boolean }
+  const handlePlayVideo = (video, context = null) => {
+    // Check if video access is paused by parent
+    if (currentProfile?.videoPaused) {
+      setTimeLimitInfo({ reason: 'paused_by_parent' });
+      setShowTimeLimitModal(true);
+      return;
+    }
     // Check time limits before playing
     if (canWatchStatus && !canWatchStatus.canWatch) {
       setTimeLimitInfo(canWatchStatus);
@@ -95,10 +104,18 @@ export default function KidPlayer() {
       return;
     }
     setPlayingVideo(video);
+    setPlayContext(context);
   };
 
   const handleCloseVideo = () => {
     setPlayingVideo(null);
+    setPlayContext(null);
+  };
+
+  // Handle playing next short (called from VideoPlayer)
+  const handlePlayNextShort = (nextVideo) => {
+    // Keep same context but switch video
+    setPlayingVideo(nextVideo);
   };
 
   // Family code entry screen
@@ -192,47 +209,68 @@ export default function KidPlayer() {
     );
   }
 
-  // Video player (full screen)
-  if (playingVideo) {
-    return (
-      <VideoPlayer
-        video={playingVideo}
-        kidProfileId={currentProfile._id}
-        onClose={handleCloseVideo}
-      />
-    );
-  }
-
   // Kid's home screen (browse content)
+  // IMPORTANT: Always render KidHome so it preserves state (selected channel, tab, etc.)
+  // When a video is playing, KidHome is hidden but stays mounted
+  // VideoPlayer renders via portal on top
   return (
     <>
-      <KidHome
-        profile={currentProfile}
-        channels={content?.channels || []}
-        videos={content?.videos || []}
-        onBack={handleBackToProfiles}
-        onPlayVideo={handlePlayVideo}
-        canWatchStatus={canWatchStatus}
-        userId={user?._id}
-        onSwitchProfile={handleBackToProfiles}
-      />
+      {/* Hide KidHome when video is playing, but keep it mounted to preserve state */}
+      <div style={{ display: playingVideo ? 'none' : 'block' }}>
+        <KidHome
+          profile={currentProfile}
+          channels={content?.channels || []}
+          videos={content?.videos || []}
+          onBack={handleBackToProfiles}
+          onPlayVideo={handlePlayVideo}
+          canWatchStatus={canWatchStatus}
+          userId={user?._id}
+          onSwitchProfile={handleBackToProfiles}
+        />
+      </div>
 
-      {/* Time Limit Reached Modal */}
+      {/* Video player (full screen) - renders via portal */}
+      {/* key={playingVideo.videoId} forces React to unmount/remount when switching videos */}
+      {playingVideo && (
+        <VideoPlayer
+          key={playingVideo.videoId}
+          video={playingVideo}
+          kidProfileId={currentProfile._id}
+          onClose={handleCloseVideo}
+          shortsList={playContext?.shortsList || []}
+          isFromChannel={playContext?.isFromChannel || false}
+          onPlayNext={handlePlayNextShort}
+        />
+      )}
+
+      {/* Time Limit / Video Paused Modal */}
       {showTimeLimitModal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl p-6 max-w-sm w-full text-center shadow-xl">
-            <div className="w-16 h-16 mx-auto mb-4 bg-orange-100 rounded-full flex items-center justify-center">
-              <svg className="w-10 h-10 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+            <div className={`w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center ${
+              timeLimitInfo?.reason === 'paused_by_parent' ? 'bg-red-100' : 'bg-orange-100'
+            }`}>
+              {timeLimitInfo?.reason === 'paused_by_parent' ? (
+                <svg className="w-10 h-10 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                </svg>
+              ) : (
+                <svg className="w-10 h-10 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              )}
             </div>
-            <h2 className="text-xl font-bold text-gray-900 mb-2">Time's Up!</h2>
+            <h2 className="text-xl font-bold text-gray-900 mb-2">
+              {timeLimitInfo?.reason === 'paused_by_parent' ? 'Videos Paused' : "Time's Up!"}
+            </h2>
             <p className="text-gray-600 mb-4">
-              {timeLimitInfo?.reason === 'outside_hours'
+              {timeLimitInfo?.reason === 'paused_by_parent'
+                ? "Your parent has paused video access. Ask them to turn it back on!"
+                : timeLimitInfo?.reason === 'outside_hours'
                 ? "It's not time for videos right now. Come back later!"
                 : "You've watched enough videos for today. Come back tomorrow!"}
             </p>
-            {timeLimitInfo?.minutesRemaining !== undefined && timeLimitInfo?.minutesRemaining <= 0 && timeLimitInfo?.reason !== 'outside_hours' && (
+            {timeLimitInfo?.minutesRemaining !== undefined && timeLimitInfo?.minutesRemaining <= 0 && timeLimitInfo?.reason !== 'outside_hours' && timeLimitInfo?.reason !== 'paused_by_parent' && (
               <p className="text-gray-500 text-sm mb-4">
                 Daily limit: {Math.floor((timeLimitInfo?.dailyLimitMinutes || 0) / 60)}h {(timeLimitInfo?.dailyLimitMinutes || 0) % 60}m
               </p>

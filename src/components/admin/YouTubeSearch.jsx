@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useMutation, useQuery, useAction } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
-import { searchChannels, searchVideos, getChannelVideos, formatDuration, formatSubscribers } from '../../config/youtube';
+import { formatDuration, formatSubscribers, formatViewCount, formatTimeAgo, decodeHtmlEntities } from '../../config/youtube';
 
 // Video Preview Modal Component
 function VideoPreviewModal({ video, onClose, onAdd, isAdded, isAdding, canAdd }) {
@@ -22,8 +22,8 @@ function VideoPreviewModal({ video, onClose, onAdd, isAdded, isAdding, canAdd })
 
         {/* Video Info */}
         <div className="p-4">
-          <h3 className="font-bold text-white text-lg mb-1 line-clamp-2">{video.title}</h3>
-          <p className="text-gray-400 text-sm mb-4">{video.channelTitle} • {formatDuration(video.durationSeconds)}</p>
+          <h3 className="font-bold text-white text-lg mb-1 line-clamp-2">{decodeHtmlEntities(video.title)}</h3>
+          <p className="text-gray-400 text-sm mb-4">{decodeHtmlEntities(video.channelTitle)} • {formatDuration(video.durationSeconds)}</p>
 
           {/* Action Buttons */}
           <div className="flex gap-3">
@@ -114,6 +114,8 @@ function Toast({ message, type = 'success', onClose }) {
 export default function YouTubeSearch({ userId, kidProfiles, selectedKidId, onSelectKid }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchType, setSearchType] = useState('channels'); // 'channels' or 'videos'
+  const [videoDuration, setVideoDuration] = useState('any'); // 'any', 'short', 'medium', 'long'
+  const [channelFilter, setChannelFilter] = useState(null); // { channelId, channelTitle } or null
   const [results, setResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [addingId, setAddingId] = useState(null);
@@ -136,6 +138,11 @@ export default function YouTubeSearch({ userId, kidProfiles, selectedKidId, onSe
   const [channelReview, setChannelReview] = useState(null);
   const reviewChannel = useAction(api.ai.channelReview.reviewChannel);
 
+  // YouTube API caching actions
+  const searchChannelsCached = useAction(api.youtubeCache.searchChannelsCached);
+  const searchVideosCached = useAction(api.youtubeCache.searchVideosCached);
+  const getChannelVideosCached = useAction(api.youtubeCache.getChannelVideosCached);
+
   // Clear added IDs when selected kid changes
   useEffect(() => {
     setAddedIds(new Set());
@@ -154,8 +161,25 @@ export default function YouTubeSearch({ userId, kidProfiles, selectedKidId, onSe
     const loadChannelVideos = async () => {
       setIsLoadingChannelVideos(true);
       try {
-        const { videos } = await getChannelVideos(previewChannel.channelId, 50);
-        setChannelVideos(videos);
+        // Use cached version to reduce API quota usage
+        const result = await getChannelVideosCached({
+          channelId: previewChannel.channelId,
+          maxVideos: 50
+        });
+
+        // Check for API errors (quota exceeded, etc.)
+        if (result.error) {
+          setToast({ message: result.error, type: 'error' });
+          setChannelVideos([]);
+          return;
+        }
+
+        setChannelVideos(result.videos || []);
+
+        // Show cache indicator if from cache
+        if (result.fromCache) {
+          console.log('[Cache] Loaded channel videos from cache');
+        }
       } catch (err) {
         console.error('Failed to load channel videos:', err);
         setToast({ message: 'Failed to load channel videos', type: 'error' });
@@ -185,7 +209,7 @@ export default function YouTubeSearch({ userId, kidProfiles, selectedKidId, onSe
   const addChannel = useMutation(api.channels.addApprovedChannel);
   const addVideo = useMutation(api.videos.addApprovedVideo);
 
-  const handleSearch = async () => {
+  const handleSearch = async (forceRefresh = false) => {
     if (!searchQuery.trim()) return;
 
     setIsSearching(true);
@@ -193,14 +217,48 @@ export default function YouTubeSearch({ userId, kidProfiles, selectedKidId, onSe
 
     try {
       if (searchType === 'channels') {
-        const channels = await searchChannels(searchQuery);
-        setResults(channels);
+        // Use cached version to reduce API quota usage
+        const result = await searchChannelsCached({ query: searchQuery, forceRefresh });
+
+        // Check for API errors (quota exceeded, etc.)
+        if (result.error) {
+          setToast({ message: result.error, type: 'error' });
+          setResults([]);
+          return;
+        }
+
+        setResults(result.results);
+
+        // Show cache indicator if from cache
+        if (result.fromCache) {
+          setToast({ message: 'Results loaded from cache', type: 'success' });
+        }
       } else {
-        const videos = await searchVideos(searchQuery);
-        setResults(videos);
+        // Use cached version to reduce API quota usage
+        const result = await searchVideosCached({
+          query: searchQuery,
+          forceRefresh,
+          videoDuration: videoDuration !== 'any' ? videoDuration : undefined,
+          channelId: channelFilter?.channelId || undefined,
+        });
+
+        // Check for API errors (quota exceeded, etc.)
+        if (result.error) {
+          setToast({ message: result.error, type: 'error' });
+          setResults([]);
+          return;
+        }
+
+        setResults(result.results);
+
+        // Show cache indicator if from cache
+        if (result.fromCache) {
+          setToast({ message: 'Results loaded from cache', type: 'success' });
+        }
       }
     } catch (err) {
       console.error('Search failed:', err);
+      setToast({ message: `Search failed: ${err.message}`, type: 'error' });
     } finally {
       setIsSearching(false);
     }
@@ -410,7 +468,7 @@ export default function YouTubeSearch({ userId, kidProfiles, selectedKidId, onSe
       )}
 
       {/* Search Type Toggle */}
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2 items-center">
         <button
           onClick={() => setSearchType('channels')}
           className={`px-4 py-2 rounded-lg font-medium transition ${
@@ -431,6 +489,41 @@ export default function YouTubeSearch({ userId, kidProfiles, selectedKidId, onSe
         >
           Videos
         </button>
+
+        {/* Duration filter - only show for video search */}
+        {searchType === 'videos' && (
+          <>
+            <span className="text-gray-400 mx-2">|</span>
+            <select
+              value={videoDuration}
+              onChange={(e) => setVideoDuration(e.target.value)}
+              className="px-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+            >
+              <option value="any">Any length</option>
+              <option value="short">Shorts (&lt; 4 min)</option>
+              <option value="medium">Medium (4-20 min)</option>
+              <option value="long">Long (&gt; 20 min)</option>
+            </select>
+          </>
+        )}
+
+        {/* Channel filter badge - show when filtering by channel */}
+        {searchType === 'videos' && channelFilter && (
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg text-sm">
+            <span className="text-blue-700">
+              Channel: <span className="font-medium">{decodeHtmlEntities(channelFilter.channelTitle)}</span>
+            </span>
+            <button
+              onClick={() => setChannelFilter(null)}
+              className="text-blue-500 hover:text-blue-700 p-0.5"
+              title="Clear channel filter"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Search Bar */}
@@ -449,12 +542,25 @@ export default function YouTubeSearch({ userId, kidProfiles, selectedKidId, onSe
           />
         </div>
         <button
-          onClick={handleSearch}
+          onClick={() => handleSearch()}
           disabled={isSearching || !searchQuery.trim()}
           className="bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 disabled:from-gray-300 disabled:to-gray-400 text-white px-6 py-3 rounded-lg font-medium transition shadow-md"
         >
           {isSearching ? 'Searching...' : 'Search'}
         </button>
+        {/* Refresh button to bypass cache */}
+        {results.length > 0 && (
+          <button
+            onClick={() => handleSearch(true)}
+            disabled={isSearching}
+            title="Refresh results (bypass cache)"
+            className="bg-white border border-gray-200 hover:border-gray-300 disabled:opacity-50 text-gray-600 px-3 py-3 rounded-lg transition shadow-sm"
+          >
+            <svg className={`w-5 h-5 ${isSearching ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          </button>
+        )}
       </div>
 
       {/* Results */}
@@ -543,38 +649,27 @@ export default function YouTubeSearch({ userId, kidProfiles, selectedKidId, onSe
               ))}
             </div>
           ) : (
-            <div className="grid md:grid-cols-2 gap-4">
+            /* YouTube-style horizontal list layout */
+            <div className="space-y-4">
               {results.map((video) => (
                 <div
                   key={video.videoId}
-                  className="bg-white rounded-xl overflow-hidden shadow-sm border border-gray-100 hover:shadow-md transition"
+                  className="bg-white rounded-xl overflow-hidden shadow-sm border border-gray-100 hover:shadow-md transition flex flex-col sm:flex-row"
                 >
-                  {/* Clickable thumbnail for preview */}
+                  {/* Thumbnail - fixed width on desktop */}
                   <button
                     onClick={() => setPreviewVideo(video)}
-                    className="relative w-full group"
+                    className="relative flex-shrink-0 sm:w-80 group"
                   >
                     {video.thumbnailUrl ? (
-                      <>
-                        <img
-                          src={video.thumbnailUrl}
-                          alt={video.title}
-                          className="w-full aspect-video object-cover"
-                          referrerPolicy="no-referrer"
-                          onError={(e) => {
-                            e.target.style.display = 'none';
-                            e.target.nextSibling.style.display = 'flex';
-                          }}
-                        />
-                        <div className="w-full aspect-video bg-gradient-to-br from-red-500 to-orange-500 items-center justify-center hidden">
-                          <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                        </div>
-                      </>
+                      <img
+                        src={video.thumbnailUrl}
+                        alt={video.title}
+                        className="w-full sm:w-80 aspect-video object-cover"
+                        referrerPolicy="no-referrer"
+                      />
                     ) : (
-                      <div className="w-full aspect-video bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center">
+                      <div className="w-full sm:w-80 aspect-video bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center">
                         <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -589,10 +684,11 @@ export default function YouTubeSearch({ userId, kidProfiles, selectedKidId, onSe
                         </svg>
                       </div>
                     </div>
+                    {/* Duration badge */}
                     <div className="absolute bottom-2 right-2 bg-black/80 px-2 py-0.5 rounded text-white text-xs font-medium">
                       {formatDuration(video.durationSeconds)}
                     </div>
-                    {/* Warning badges for non-embeddable or age-restricted */}
+                    {/* Warning badges */}
                     {(video.embeddable === false || video.ageRestricted) && (
                       <div className="absolute top-2 left-2 flex gap-1">
                         {video.embeddable === false && (
@@ -608,26 +704,58 @@ export default function YouTubeSearch({ userId, kidProfiles, selectedKidId, onSe
                       </div>
                     )}
                   </button>
-                  <div className="p-4">
-                    <h4 className="font-semibold text-gray-900 line-clamp-2 mb-1">{video.title}</h4>
-                    <p className="text-gray-500 text-sm">{video.channelTitle}</p>
-                    {/* Show warning message for non-playable videos */}
+
+                  {/* Video info - YouTube style */}
+                  <div className="flex-1 p-4 flex flex-col min-w-0">
+                    {/* Title */}
+                    <h4 className="font-semibold text-gray-900 line-clamp-2 mb-1 text-base">{decodeHtmlEntities(video.title)}</h4>
+
+                    {/* View count and time ago */}
+                    <p className="text-gray-500 text-xs mb-2">
+                      {video.viewCount && formatViewCount(video.viewCount)}
+                      {video.viewCount && video.publishedAt && ' • '}
+                      {video.publishedAt && formatTimeAgo(video.publishedAt)}
+                    </p>
+
+                    {/* Channel name - clickable to filter by this channel */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setChannelFilter({ channelId: video.channelId, channelTitle: video.channelTitle });
+                      }}
+                      className="text-gray-500 text-sm mb-2 hover:text-red-600 hover:underline transition text-left"
+                      title={`Search only in ${decodeHtmlEntities(video.channelTitle)}`}
+                    >
+                      {decodeHtmlEntities(video.channelTitle)}
+                    </button>
+
+                    {/* Description snippet */}
+                    {video.description && (
+                      <p className="text-gray-400 text-xs line-clamp-2 mb-3">{decodeHtmlEntities(video.description)}</p>
+                    )}
+
+                    {/* Spacer to push button to bottom */}
+                    <div className="flex-1" />
+
+                    {/* Warning message for non-playable videos */}
                     {(video.embeddable === false || video.ageRestricted) && (
-                      <p className="text-yellow-600 text-xs mt-1">
+                      <p className="text-yellow-600 text-xs mb-2">
                         {video.embeddable === false
                           ? "This video can't be played in SafeTube"
                           : "Requires YouTube login to watch"}
                       </p>
                     )}
+
+                    {/* Action button */}
                     {addedIds.has(video.videoId) || existingVideoIds.has(video.videoId) ? (
-                      <div className="mt-3 w-full flex items-center justify-center gap-2 bg-green-500 text-white py-2 rounded-lg font-medium shadow-sm">
+                      <div className="flex items-center gap-2 text-green-600 font-medium text-sm">
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                         </svg>
                         {existingVideoIds.has(video.videoId) ? 'In Library' : 'Added'}
                       </div>
                     ) : video.embeddable === false ? (
-                      <div className="mt-3 w-full flex items-center justify-center gap-2 bg-gray-300 text-gray-500 py-2 rounded-lg font-medium cursor-not-allowed">
+                      <div className="flex items-center gap-2 text-gray-400 font-medium text-sm">
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
                         </svg>
@@ -637,7 +765,7 @@ export default function YouTubeSearch({ userId, kidProfiles, selectedKidId, onSe
                       <button
                         onClick={() => handleAddVideo(video)}
                         disabled={addingId === video.videoId || !selectedKidId}
-                        className={`mt-3 w-full py-2 rounded-lg font-medium transition shadow-sm ${
+                        className={`self-start px-4 py-2 rounded-lg font-medium transition text-sm ${
                           video.ageRestricted
                             ? 'bg-yellow-500 hover:bg-yellow-600 text-white'
                             : 'bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 disabled:from-gray-300 disabled:to-gray-400 text-white'

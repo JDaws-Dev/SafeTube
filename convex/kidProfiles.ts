@@ -99,21 +99,46 @@ export const updateKidProfile = mutation({
     icon: v.optional(v.string()),
     color: v.optional(v.string()),
     shortsEnabled: v.optional(v.boolean()),
+    videoPaused: v.optional(v.boolean()),
     maxVideosPerChannel: v.optional(v.number()),
     requestsEnabled: v.optional(v.boolean()),
+    pin: v.optional(v.string()), // 4-digit PIN (or empty string to remove)
   },
   handler: async (ctx, args) => {
-    const updates: Record<string, string | boolean | number> = {};
+    const updates: Record<string, string | boolean | number | undefined> = {};
     if (args.name) updates.name = args.name;
     if (args.icon) updates.icon = args.icon;
     if (args.color) updates.color = args.color;
     if (args.shortsEnabled !== undefined) updates.shortsEnabled = args.shortsEnabled;
+    if (args.videoPaused !== undefined) updates.videoPaused = args.videoPaused;
     if (args.maxVideosPerChannel !== undefined) updates.maxVideosPerChannel = args.maxVideosPerChannel;
     if (args.requestsEnabled !== undefined) updates.requestsEnabled = args.requestsEnabled;
+    // Handle PIN: empty string removes it, otherwise set the new PIN
+    if (args.pin !== undefined) {
+      updates.pin = args.pin === '' ? undefined : args.pin;
+    }
 
     if (Object.keys(updates).length > 0) {
       await ctx.db.patch(args.profileId, updates);
     }
+  },
+});
+
+// Verify a kid's PIN
+export const verifyKidPin = query({
+  args: {
+    profileId: v.id("kidProfiles"),
+    pin: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const profile = await ctx.db.get(args.profileId);
+    if (!profile) return { valid: false, error: "Profile not found" };
+
+    // If no PIN is set, always valid
+    if (!profile.pin) return { valid: true };
+
+    // Check if PIN matches
+    return { valid: profile.pin === args.pin };
   },
 });
 

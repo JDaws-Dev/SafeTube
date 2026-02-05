@@ -53,6 +53,7 @@ export default function KidHome({ profile, channels, videos, onBack, onPlayVideo
   const addVideoToPlaylistMutation = useMutation(api.kidPlaylists.addVideoToPlaylist);
 
   const handleAddVideoToPlaylist = async (playlistId, video) => {
+    if (!profile?._id) return;
     try {
       await addVideoToPlaylistMutation({
         playlistId,
@@ -196,6 +197,23 @@ export default function KidHome({ profile, channels, videos, onBack, onPlayVideo
     );
   }, [liveChannelVideos, channelSearchQuery]);
 
+  // Guard: if profile is not available, show loading state
+  if (!profile) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-red-50 via-white to-orange-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-orange-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg animate-pulse">
+            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   // Load more videos for current channel
   const handleLoadMoreVideos = async () => {
     if (!selectedChannel || isLoadingMore) return;
@@ -322,38 +340,114 @@ export default function KidHome({ profile, channels, videos, onBack, onPlayVideo
               <p className="text-gray-500">No videos matching "{channelSearchQuery}"</p>
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-6 lg:max-w-6xl">
               {channelSearchQuery && (
-                <p className="text-gray-500 text-sm mb-3">
+                <p className="text-gray-500 text-sm">
                   {filteredChannelVideos.length} video{filteredChannelVideos.length !== 1 ? 's' : ''} found
                 </p>
               )}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 lg:gap-6">
-                {filteredChannelVideos.map((video) => (
-                  <div key={video.videoId} className="relative group">
-                    <VideoCard
-                      video={video}
-                      onPlay={() => onPlayVideo(video)}
-                      showChannel={false}
-                    />
-                    {/* Add to playlist button */}
-                    {kidPlaylists && kidPlaylists.length > 0 && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setShowAddToPlaylistModal(video);
-                        }}
-                        className="absolute top-2 right-2 p-2 bg-black/70 rounded-full text-white opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition z-10"
-                        title="Add to playlist"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                        </svg>
-                      </button>
+
+              {/* Separate Shorts/Vertical from regular videos */}
+              {/* Detect vertical videos by: isVertical flag from API OR duration <=180s OR #shorts in title */}
+              {(() => {
+                const isVerticalVideo = (v) => {
+                  // API detected vertical aspect ratio (height > width)
+                  if (v.isVertical === true) return true;
+                  // Short duration (3 minutes or less) - max YouTube Shorts length
+                  if (v.durationSeconds && v.durationSeconds <= 180) return true;
+                  // Title contains #shorts or #short
+                  if (v.title && /#shorts?/i.test(v.title)) return true;
+                  return false;
+                };
+                // Only show shorts if enabled for this kid's profile
+                const shorts = profile?.shortsEnabled === false ? [] : filteredChannelVideos.filter(isVerticalVideo);
+                const regularVideos = profile?.shortsEnabled === false
+                  ? filteredChannelVideos // Show all videos as regular when shorts disabled
+                  : filteredChannelVideos.filter(v => !isVerticalVideo(v));
+
+                return (
+                  <>
+                    {/* Shorts Section - Horizontal carousel */}
+                    {shorts.length > 0 && (
+                      <section>
+                        <h2 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                          <svg className="w-5 h-5 text-red-500" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M17.77 10.32c-.77-.32-1.2-.5-1.2-.5L18 9.06c1.84-.96 2.53-3.23 1.56-5.06s-3.24-2.53-5.07-1.56L6 6.94c-1.29.68-2.07 2.04-2 3.49.07 1.42.93 2.67 2.22 3.25.03.01 1.2.5 1.2.5L6 14.93c-1.83.97-2.53 3.24-1.56 5.07.97 1.83 3.24 2.53 5.07 1.56l8.5-4.5c1.29-.68 2.06-2.04 1.99-3.49-.07-1.42-.94-2.68-2.23-3.25z"/>
+                          </svg>
+                          Shorts
+                          <span className="text-sm font-normal text-gray-500">({shorts.length})</span>
+                        </h2>
+                        <div className="flex flex-wrap sm:flex-nowrap gap-3 lg:gap-4 sm:overflow-x-auto pb-2">
+                          {shorts.map((video) => (
+                            <div key={video.videoId} className="relative group">
+                              <ShortsCard
+                                video={video}
+                                onPlay={() => onPlayVideo(video, { shortsList: shorts, isFromChannel: true })}
+                              />
+                              {/* Add to playlist button */}
+                              {kidPlaylists && kidPlaylists.length > 0 && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setShowAddToPlaylistModal(video);
+                                  }}
+                                  className="absolute top-2 right-2 p-1.5 bg-black/70 rounded-full text-white opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition z-10"
+                                  title="Add to playlist"
+                                >
+                                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                  </svg>
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </section>
                     )}
-                  </div>
-                ))}
-              </div>
+
+                    {/* Regular Videos Section - Grid */}
+                    {regularVideos.length > 0 && (
+                      <section>
+                        {shorts.length > 0 && (
+                          <h2 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                            <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                            </svg>
+                            Videos
+                            <span className="text-sm font-normal text-gray-500">({regularVideos.length})</span>
+                          </h2>
+                        )}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 lg:gap-6">
+                          {regularVideos.map((video) => (
+                            <div key={video.videoId} className="relative group">
+                              <VideoCard
+                                video={video}
+                                onPlay={() => onPlayVideo(video)}
+                                showChannel={false}
+                              />
+                              {/* Add to playlist button */}
+                              {kidPlaylists && kidPlaylists.length > 0 && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setShowAddToPlaylistModal(video);
+                                  }}
+                                  className="absolute top-2 right-2 p-2 bg-black/70 rounded-full text-white opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition z-10"
+                                  title="Add to playlist"
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                  </svg>
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </section>
+                    )}
+                  </>
+                );
+              })()}
               {/* Load More Button */}
               {hasMoreVideos && !channelSearchQuery && (
                 <div className="text-center mt-6">
@@ -510,10 +604,10 @@ export default function KidHome({ profile, channels, videos, onBack, onPlayVideo
           <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-red-50 to-orange-50 rounded-xl">
             <div
               className="w-10 h-10 rounded-full shadow-sm flex-shrink-0"
-              style={{ backgroundColor: profile.color || '#ef4444' }}
+              style={{ backgroundColor: profile?.color || '#ef4444' }}
             />
             <div className="flex-1 min-w-0">
-              <p className="font-semibold text-gray-900 truncate">{profile.name}</p>
+              <p className="font-semibold text-gray-900 truncate">{profile?.name}</p>
               {remainingTimeDisplay && (
                 <p className={`text-xs font-medium ${isTimeLow ? 'text-orange-600' : 'text-green-600'}`}>
                   {remainingTimeDisplay}
@@ -530,7 +624,7 @@ export default function KidHome({ profile, channels, videos, onBack, onPlayVideo
             { id: 'channels', label: 'Channels', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg> },
             { id: 'mylist', label: 'My List', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg> },
             // Only show Requests tab if requests are enabled for this profile
-            ...(profile.requestsEnabled !== false ? [{ id: 'requests', label: 'Requests', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>, badge: kidRequests?.filter(r => r.status === 'pending').length || 0 }] : []),
+            ...(profile?.requestsEnabled !== false ? [{ id: 'requests', label: 'Requests', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>, badge: kidRequests?.filter(r => r.status === 'pending').length || 0 }] : []),
           ].map((item) => (
             <button
               key={item.id}
@@ -585,9 +679,9 @@ export default function KidHome({ profile, channels, videos, onBack, onPlayVideo
           <div className="flex items-center gap-2">
             <div
               className="w-8 h-8 rounded-full shadow-sm flex-shrink-0"
-              style={{ backgroundColor: profile.color || '#ef4444' }}
+              style={{ backgroundColor: profile?.color || '#ef4444' }}
             />
-            <span className="text-gray-900 font-semibold">{profile.name}</span>
+            <span className="text-gray-900 font-semibold">{profile?.name}</span>
             {/* Time remaining badge */}
             {remainingTimeDisplay && (
               <div className={`flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ml-1 ${
@@ -657,15 +751,17 @@ export default function KidHome({ profile, channels, videos, onBack, onPlayVideo
         </header>
 
         {/* Content - with bottom padding for mobile nav, no padding on desktop */}
-        <main className="flex-1 overflow-y-auto pb-24 lg:pb-8">
+        {/* Max-width container prevents content from stretching too wide on large screens */}
+        <main className="flex-1 overflow-y-auto pb-24 lg:pb-8 lg:max-w-6xl">
         {activeTab === 'home' && (
           <HomeTab
             channels={filteredChannels}
             videos={filteredVideos}
             onPlayVideo={onPlayVideo}
             onChannelClick={handleChannelClick}
-            profileId={profile._id}
+            profileId={profile?._id}
             playlists={kidPlaylists || []}
+            shortsEnabled={profile?.shortsEnabled !== false}
           />
         )}
 
@@ -682,17 +778,17 @@ export default function KidHome({ profile, channels, videos, onBack, onPlayVideo
             requests={kidRequests || []}
             videos={filteredVideos}
             playlists={kidPlaylists || []}
-            profileId={profile._id}
+            profileId={profile?._id}
             onPlayVideo={onPlayVideo}
             onGoToRequests={() => setActiveTab('requests')}
-            requestsEnabled={profile.requestsEnabled !== false}
+            requestsEnabled={profile?.requestsEnabled !== false}
           />
         )}
 
-        {activeTab === 'requests' && profile.requestsEnabled !== false && (
+        {activeTab === 'requests' && profile?.requestsEnabled !== false && (
           <RequestsTab
             requests={kidRequests || []}
-            profileId={profile._id}
+            profileId={profile?._id}
             userId={userId}
           />
         )}
@@ -701,7 +797,7 @@ export default function KidHome({ profile, channels, videos, onBack, onPlayVideo
 
       {/* Fixed Bottom Navigation - Hidden on desktop */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-2 pb-safe z-50">
-        <div className={`grid gap-1 ${profile.requestsEnabled !== false ? 'grid-cols-4' : 'grid-cols-3'}`}>
+        <div className={`grid gap-1 ${profile?.requestsEnabled !== false ? 'grid-cols-4' : 'grid-cols-3'}`}>
           {[
             {
               id: 'home',
@@ -731,7 +827,7 @@ export default function KidHome({ profile, channels, videos, onBack, onPlayVideo
               ),
             },
             // Only include Requests tab if requests are enabled for this profile
-            ...(profile.requestsEnabled !== false ? [{
+            ...(profile?.requestsEnabled !== false ? [{
               id: 'requests',
               label: 'Requests',
               icon: (
@@ -860,7 +956,7 @@ function TopicFilterPills({ selectedFilter, onFilterChange }) {
 }
 
 // Home Tab - YouTube-style feed with latest videos from channels
-function HomeTab({ channels, videos, onPlayVideo, onChannelClick, profileId, playlists }) {
+function HomeTab({ channels, videos, onPlayVideo, onChannelClick, profileId, playlists, shortsEnabled = true }) {
   const [feedVideos, setFeedVideos] = useState([]);
   const [isLoadingFeed, setIsLoadingFeed] = useState(true);
   const [loadError, setLoadError] = useState(null);
@@ -894,6 +990,8 @@ function HomeTab({ channels, videos, onPlayVideo, onChannelClick, profileId, pla
   );
 
   // Fetch latest videos from approved channels on mount
+  // IMPORTANT: Only fetch from YouTube for FULL channel approvals
+  // For PARTIAL channels (individual video approvals), only show the approved videos
   useEffect(() => {
     if (channels.length === 0) {
       setIsLoadingFeed(false);
@@ -907,12 +1005,15 @@ function HomeTab({ channels, videos, onPlayVideo, onChannelClick, profileId, pla
         setIsLoadingFeed(true);
         setLoadError(null);
 
-        // Fetch recent videos from each channel (limit to first 5 channels for performance)
-        const channelsToFetch = channels.slice(0, 5);
-        const allChannelVideos = await Promise.all(
-          channelsToFetch.map(async (channel) => {
+        // Separate full vs partial channels
+        const fullChannels = channels.filter(c => !c.isPartial);
+        const partialChannelIds = new Set(channels.filter(c => c.isPartial).map(c => c.channelId));
+
+        // Only fetch from YouTube for FULL channel approvals
+        const fullChannelVideos = await Promise.all(
+          fullChannels.map(async (channel) => {
             try {
-              const { videos: channelVids } = await getChannelVideos(channel.channelId, 10);
+              const { videos: channelVids } = await getChannelVideos(channel.channelId, 15);
               return channelVids.map(v => ({
                 ...v,
                 channelThumbnailUrl: channel.thumbnailUrl,
@@ -926,14 +1027,28 @@ function HomeTab({ channels, videos, onPlayVideo, onChannelClick, profileId, pla
 
         if (cancelled) return;
 
-        // Flatten, dedupe, and sort by publish date
-        const allVideos = allChannelVideos.flat();
+        // For partial channels, ONLY use the pre-approved videos (from `videos` prop)
+        // These are the specifically approved individual videos
+        const partialChannelVideos = videos
+          .filter(v => partialChannelIds.has(v.channelId))
+          .map(v => ({
+            ...v,
+            channelThumbnailUrl: channels.find(c => c.channelId === v.channelId)?.thumbnailUrl,
+          }));
+
+        // Combine full channel videos + approved partial videos
+        const allVideos = [...fullChannelVideos.flat(), ...partialChannelVideos];
+
+        // Dedupe and sort by publish date
         const uniqueVideos = Array.from(
           new Map(allVideos.map(v => [v.videoId, v])).values()
         );
-        const sortedVideos = uniqueVideos.sort((a, b) =>
-          new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
-        );
+        const sortedVideos = uniqueVideos.sort((a, b) => {
+          // Handle missing publishedAt - put items without dates at the end
+          const dateA = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
+          const dateB = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
+          return dateB - dateA;
+        });
 
         setFeedVideos(sortedVideos);
       } catch (err) {
@@ -953,16 +1068,24 @@ function HomeTab({ channels, videos, onPlayVideo, onChannelClick, profileId, pla
     return () => {
       cancelled = true;
     };
-  }, [channels]);
+  }, [channels, videos]);
 
-  // Separate shorts (under 60 seconds) from regular videos
+  // Separate shorts (up to 3 minutes / 180 seconds - max YouTube Shorts length) from regular videos
+  // Sort shorts by publish date (most recent first)
   const shorts = useMemo(() =>
-    feedVideos.filter(v => v.durationSeconds > 0 && v.durationSeconds <= 60),
+    feedVideos
+      .filter(v => v.durationSeconds > 0 && v.durationSeconds <= 180)
+      .sort((a, b) => {
+        // Handle missing publishedAt - put items without dates at the end
+        const dateA = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
+        const dateB = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
+        return dateB - dateA;
+      }),
     [feedVideos]
   );
 
   const regularVideos = useMemo(() =>
-    feedVideos.filter(v => v.durationSeconds > 60 || v.durationSeconds === 0),
+    feedVideos.filter(v => v.durationSeconds > 180 || v.durationSeconds === 0),
     [feedVideos]
   );
 
@@ -977,6 +1100,7 @@ function HomeTab({ channels, videos, onPlayVideo, onChannelClick, profileId, pla
   };
 
   // Also include individually approved videos that might not be from channel feeds
+  // Sort by publish date (newest first) across ALL approved channels
   const combinedVideos = useMemo(() => {
     const feedVideoIds = new Set(feedVideos.map(v => v.videoId));
     const extraVideos = videos.filter(v => !feedVideoIds.has(v.videoId));
@@ -987,16 +1111,88 @@ function HomeTab({ channels, videos, onPlayVideo, onChannelClick, profileId, pla
       allVideos = allVideos.filter(v => matchesTopic(v, selectedFilter));
     }
 
-    return allVideos.slice(0, 20);
+    // Sort by publish date (newest first)
+    allVideos.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
+
+    return allVideos.slice(0, 50);
   }, [regularVideos, videos, feedVideos, selectedFilter]);
 
-  // Filter shorts by topic too
+  // Sort channels by most recently posted video and dedupe
+  const sortedChannels = useMemo(() => {
+    // Create a map of channelId -> most recent publish date
+    const channelLastPost = new Map();
+    feedVideos.forEach(v => {
+      const current = channelLastPost.get(v.channelId);
+      const videoDate = new Date(v.publishedAt).getTime();
+      if (!current || videoDate > current) {
+        channelLastPost.set(v.channelId, videoDate);
+      }
+    });
+
+    // Dedupe channels by channelId
+    const seen = new Set();
+    const uniqueChannels = channels.filter(ch => {
+      if (seen.has(ch.channelId)) return false;
+      seen.add(ch.channelId);
+      return true;
+    });
+
+    // Sort by most recently posted (channels with videos first, then by date)
+    return uniqueChannels.sort((a, b) => {
+      const aDate = channelLastPost.get(a.channelId) || 0;
+      const bDate = channelLastPost.get(b.channelId) || 0;
+      return bDate - aDate;
+    });
+  }, [channels, feedVideos]);
+
+  // Filter shorts by topic and check if shorts are enabled for this kid
   const filteredShorts = useMemo(() => {
+    // If shorts are disabled for this kid, return empty array
+    if (!shortsEnabled) return [];
     if (selectedFilter === 'all') return shorts;
     return shorts.filter(v => matchesTopic(v, selectedFilter));
-  }, [shorts, selectedFilter]);
+  }, [shorts, selectedFilter, shortsEnabled]);
 
   const featuredChannels = channels.slice(0, 6);
+
+  // Recently added channels (within last 7 days) - for the "New Channels" section
+  // Only shows channels from approvedChannels table (full channel approvals, not individual videos)
+  const recentlyAddedChannels = useMemo(() => {
+    const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+    const seen = new Set();
+    return channels
+      .filter(ch => {
+        if (seen.has(ch.channelId)) return false;
+        seen.add(ch.channelId);
+        return ch.addedAt && ch.addedAt > sevenDaysAgo;
+      })
+      .sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0))
+      .slice(0, 12); // Show up to 12 recently added channels
+  }, [channels]);
+
+  // Random suggestions - pick 3 random videos from different channels (refreshes each visit)
+  const suggestedVideos = useMemo(() => {
+    // Get regular videos only (no shorts) from the feed
+    const regularFeedVideos = feedVideos.filter(v => v.durationSeconds > 180 || v.durationSeconds === 0);
+    if (regularFeedVideos.length === 0) return [];
+
+    // Shuffle videos randomly
+    const shuffled = [...regularFeedVideos].sort(() => Math.random() - 0.5);
+
+    // Pick videos ensuring no duplicate channels
+    const result = [];
+    const usedChannels = new Set();
+
+    for (const video of shuffled) {
+      if (result.length >= 3) break;
+      if (!usedChannels.has(video.channelId)) {
+        result.push(video);
+        usedChannels.add(video.channelId);
+      }
+    }
+
+    return result;
+  }, [feedVideos]);
 
   if (videos.length === 0 && channels.length === 0) {
     return (
@@ -1023,13 +1219,13 @@ function HomeTab({ channels, videos, onPlayVideo, onChannelClick, profileId, pla
         onFilterChange={setSelectedFilter}
       />
 
-      <div className="px-4 space-y-6">
-      {/* Subscribed Channels - Horizontal scroll row */}
-      {selectedFilter === 'all' && channels.length > 0 && (
+      <div className="px-4 space-y-6 lg:max-w-6xl">
+      {/* Subscribed Channels - Horizontal scroll, sorted by most recently posted */}
+      {selectedFilter === 'all' && sortedChannels.length > 0 && (
         <section>
           <h2 className="text-lg font-semibold text-gray-900 mb-3">Your Channels</h2>
           <div className="flex gap-4 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
-            {channels.map((channel) => (
+            {sortedChannels.map((channel) => (
               <button
                 key={channel.channelId}
                 onClick={() => onChannelClick(channel)}
@@ -1058,7 +1254,117 @@ function HomeTab({ channels, videos, onPlayVideo, onChannelClick, profileId, pla
         </section>
       )}
 
-      {/* New For You - Only individually approved videos (requested by kid) */}
+      {/* New Channels - Recently added by parent (within last 7 days) */}
+      {selectedFilter === 'all' && recentlyAddedChannels.length > 0 && (
+        <section className="bg-gradient-to-r from-green-50 to-emerald-50 -mx-4 px-4 py-4 rounded-xl border border-green-100">
+          <h2 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+            <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+            New Channels
+            <span className="text-xs font-normal text-green-600 bg-green-100 px-2 py-0.5 rounded-full">Just Added!</span>
+          </h2>
+          <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
+            {recentlyAddedChannels.map((channel) => (
+              <button
+                key={`new-${channel.channelId}`}
+                onClick={() => onChannelClick(channel)}
+                className="flex-shrink-0 flex flex-col items-center gap-1.5 w-20"
+              >
+                {channel.thumbnailUrl ? (
+                  <img
+                    src={channel.thumbnailUrl}
+                    alt={channel.channelTitle}
+                    className="w-16 h-16 rounded-full object-cover border-2 border-green-400 shadow-md ring-2 ring-green-200"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center border-2 border-green-400 shadow-md ring-2 ring-green-200">
+                    <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                )}
+                <span className="text-gray-700 text-[11px] text-center line-clamp-2 font-medium w-full">
+                  {channel.channelTitle}
+                </span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Suggested For You - 3 random videos from channels, refreshes each visit */}
+      {selectedFilter === 'all' && suggestedVideos.length > 0 && (
+        <section>
+          <h2 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+            <svg className="w-5 h-5 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+            </svg>
+            Suggested For You
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 lg:gap-4">
+            {suggestedVideos.map((video) => (
+              <div key={video.videoId} className="relative group">
+                <button
+                  onClick={() => onPlayVideo(video)}
+                  className="w-full text-left"
+                >
+                  <div className="relative aspect-video rounded-lg overflow-hidden bg-gray-900 shadow-sm mb-1.5">
+                    {video.thumbnailUrl ? (
+                      <img
+                        src={video.thumbnailUrl}
+                        alt={video.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition"
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center">
+                        <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                        </svg>
+                      </div>
+                    )}
+                    {/* Duration badge */}
+                    {video.durationSeconds && (
+                      <div className="absolute bottom-1 right-1 bg-black/80 px-1.5 py-0.5 rounded text-white text-xs font-medium">
+                        {formatDuration(video.durationSeconds)}
+                      </div>
+                    )}
+                    {/* Play overlay on hover */}
+                    <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
+                      <div className="w-12 h-12 bg-white/90 rounded-full flex items-center justify-center">
+                        <svg className="w-6 h-6 text-gray-900 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M8 5v14l11-7z" />
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-gray-900 text-sm font-medium line-clamp-2">{video.title}</p>
+                  <p className="text-gray-500 text-xs mt-0.5">{video.channelTitle}</p>
+                </button>
+                {/* Add to playlist button */}
+                {playlists.length > 0 && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowAddToPlaylist(video);
+                    }}
+                    className="absolute top-2 right-2 p-2 bg-black/70 rounded-full text-white opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition z-10"
+                    title="Add to playlist"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* New For You - Individually approved videos (sorted by when added) */}
       {selectedFilter === 'all' && videos.length > 0 && (
         <section>
           <h2 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
@@ -1067,9 +1373,10 @@ function HomeTab({ channels, videos, onPlayVideo, onChannelClick, profileId, pla
             </svg>
             New For You
           </h2>
-          <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
-            {videos.slice(0, 4).map((video) => (
-              <div key={video.videoId} className="flex-shrink-0 w-40 relative group">
+          {/* Mobile: horizontal scroll, Desktop: grid */}
+          <div className="flex lg:grid lg:grid-cols-4 xl:grid-cols-5 gap-3 lg:gap-4 overflow-x-auto lg:overflow-visible pb-2 -mx-4 px-4 lg:mx-0 lg:px-0 scrollbar-hide">
+            {videos.slice(0, 8).map((video) => (
+              <div key={video.videoId} className="flex-shrink-0 w-40 lg:w-auto relative group">
                 <button
                   onClick={() => onPlayVideo(video)}
                   className="w-full"
@@ -1129,9 +1436,10 @@ function HomeTab({ channels, videos, onPlayVideo, onChannelClick, profileId, pla
             </svg>
             Recently Watched
           </h2>
+          {/* Horizontal scroll on all screen sizes - dedupe by videoId to avoid repeats */}
           <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
-            {watchHistory.slice(0, 4).map((item) => (
-              <div key={item._id} className="flex-shrink-0 w-36 relative group">
+            {Array.from(new Map(watchHistory.map(item => [item.videoId, item])).values()).slice(0, 6).map((item) => (
+              <div key={item._id} className="flex-shrink-0 w-40 relative group">
                 <button
                   onClick={() => onPlayVideo({
                     videoId: item.videoId,
@@ -1194,7 +1502,7 @@ function HomeTab({ channels, videos, onPlayVideo, onChannelClick, profileId, pla
         </section>
       )}
 
-      {/* Shorts Section - Grid layout */}
+      {/* Shorts Section - Horizontal scroll on mobile, constrained grid on desktop */}
       {filteredShorts.length > 0 && (
         <section>
           <h2 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
@@ -1203,12 +1511,13 @@ function HomeTab({ channels, videos, onPlayVideo, onChannelClick, profileId, pla
             </svg>
             Shorts
           </h2>
-          <div className="grid grid-cols-2 gap-3 lg:gap-4">
-            {filteredShorts.slice(0, 2).map((video) => (
+          {/* On mobile: 2 columns wrapped. On desktop: horizontal row with fixed-width cards */}
+          <div className="flex flex-wrap sm:flex-nowrap gap-3 lg:gap-4 sm:overflow-x-auto pb-2">
+            {filteredShorts.slice(0, 12).map((video) => (
               <div key={video.videoId} className="relative group">
                 <ShortsCard
                   video={video}
-                  onPlay={() => onPlayVideo(video)}
+                  onPlay={() => onPlayVideo(video, { shortsList: filteredShorts, isFromChannel: false })}
                 />
                 {/* Add to playlist button */}
                 {playlists.length > 0 && (
@@ -1248,14 +1557,12 @@ function HomeTab({ channels, videos, onPlayVideo, onChannelClick, profileId, pla
         </div>
       )}
 
-      {/* More Videos - Show remaining videos after the first 4 (more when filtered) */}
-      {combinedVideos.length > 4 && (
+      {/* More Videos - Show remaining videos after the featured section */}
+      {combinedVideos.length > 0 && (
         <section>
-          {selectedFilter === 'all' && (
-            <h2 className="text-lg font-semibold text-gray-900 mb-3">More Videos</h2>
-          )}
+          <h2 className="text-lg font-semibold text-gray-900 mb-3">Latest Videos</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 lg:gap-6">
-            {combinedVideos.slice(4, selectedFilter === 'all' ? 8 : 20).map((video) => (
+            {combinedVideos.slice(0, 24).map((video) => (
               <div key={video.videoId} className="relative group">
                 <VideoCard
                   video={video}
@@ -1434,7 +1741,7 @@ function ShortsCard({ video, onPlay }) {
   return (
     <button
       onClick={onPlay}
-      className="flex-shrink-0 w-full group"
+      className="flex-shrink-0 w-[calc(50%-6px)] sm:w-[140px] lg:w-[160px] group"
     >
       <div className="relative aspect-[9/16] rounded-xl overflow-hidden bg-gray-900 shadow-md">
         {video.thumbnailUrl ? (
@@ -1639,11 +1946,12 @@ function ChannelsTab({ channels, onChannelClick, onPlayVideo }) {
 
       {/* Search Results - Videos */}
       {searchQuery && !isSearching && searchResults.length > 0 && (
-        <div className="p-4 pt-2">
+        <div className="p-4 pt-2 lg:max-w-6xl">
           <p className="text-sm text-gray-500 mb-3">
             {searchResults.length} video{searchResults.length !== 1 ? 's' : ''} found
           </p>
-          <div className="grid gap-4">
+          {/* Mobile: single column, Desktop: grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {searchResults.map((video) => (
               <VideoCard
                 key={video.videoId}
@@ -1671,7 +1979,7 @@ function ChannelsTab({ channels, onChannelClick, onPlayVideo }) {
 
       {/* Channels List - Only show when not searching */}
       {!searchQuery && (
-        <div className="p-4 pt-2 grid gap-3">
+        <div className="p-4 pt-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 lg:max-w-6xl">
           {channels.map((channel) => (
             <button
               key={channel.channelId}
@@ -1833,7 +2141,7 @@ function MyListTab({ requests, videos, playlists, profileId, onPlayVideo, onGoTo
   // Playlist Detail View
   if (activeView === 'playlist-detail' && selectedPlaylist) {
     return (
-      <div className="p-4">
+      <div className="p-4 lg:max-w-6xl">
         {/* Back button and playlist header */}
         <button
           onClick={() => {
@@ -1919,7 +2227,7 @@ function MyListTab({ requests, videos, playlists, profileId, onPlayVideo, onGoTo
 
   // Main view with tabs
   return (
-    <div className="p-4">
+    <div className="p-4 lg:max-w-6xl">
       {/* Tab buttons */}
       <div className="flex gap-2 mb-6">
         <button
@@ -2415,7 +2723,7 @@ function RequestsTab({ requests, profileId, userId }) {
 
       {/* Search View */}
       {activeView === 'search' && (
-        <div className="flex-1 p-4 overflow-y-auto">
+        <div className="flex-1 p-4 overflow-y-auto lg:max-w-6xl">
           {/* Search Form */}
           <form onSubmit={handleSearch} className="mb-4">
             <div className="relative">
@@ -2489,7 +2797,7 @@ function RequestsTab({ requests, profileId, userId }) {
 
               {/* Video Results - NO thumbnails to avoid inappropriate content */}
               {searchType === 'videos' && (
-                <div className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {videoResults.length === 0 ? (
                     <p className="text-center py-8 text-gray-500">No videos found</p>
                   ) : (
@@ -2541,7 +2849,7 @@ function RequestsTab({ requests, profileId, userId }) {
 
               {/* Channel Results */}
               {searchType === 'channels' && (
-                <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {channelResults.length === 0 ? (
                     <p className="text-center py-8 text-gray-500">No channels found</p>
                   ) : (
@@ -2553,20 +2861,12 @@ function RequestsTab({ requests, profileId, userId }) {
                           key={channel.channelId}
                           className="flex gap-3 p-3 bg-white rounded-xl border border-gray-100 shadow-sm"
                         >
-                          {channel.thumbnailUrl ? (
-                            <img
-                              src={channel.thumbnailUrl}
-                              alt={channel.channelTitle}
-                              className="w-16 h-16 rounded-full object-cover flex-shrink-0"
-                              referrerPolicy="no-referrer"
-                            />
-                          ) : (
-                            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center flex-shrink-0">
-                              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                              </svg>
-                            </div>
-                          )}
+                          {/* Generic channel icon - don't show actual thumbnails to avoid inappropriate content */}
+                          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center flex-shrink-0">
+                            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                            </svg>
+                          </div>
                           <div className="flex-1 min-w-0 flex flex-col">
                             <h4 className="font-semibold text-gray-900 truncate">{decodeHtmlEntities(channel.channelTitle)}</h4>
                             {channel.subscriberCount && (
@@ -2626,7 +2926,7 @@ function RequestsTab({ requests, profileId, userId }) {
 
       {/* History View */}
       {activeView === 'history' && (
-        <div className="flex-1 p-4 space-y-6 overflow-y-auto">
+        <div className="flex-1 p-4 space-y-6 overflow-y-auto lg:max-w-6xl">
           {requests.length === 0 && (!channelRequests || channelRequests.length === 0) ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">

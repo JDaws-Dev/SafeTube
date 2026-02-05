@@ -5,7 +5,6 @@ import { api } from '../../convex/_generated/api';
 import { signOut, useSession } from '../lib/auth-client';
 
 // Components
-import KidsManager from '../components/admin/KidsManager';
 import YouTubeSearch from '../components/admin/YouTubeSearch';
 import ContentLibrary from '../components/admin/ContentLibrary';
 import VideoRequests from '../components/admin/VideoRequests';
@@ -19,6 +18,7 @@ export default function AdminDashboard() {
 
   // Sync user to our database on login
   const syncUser = useMutation(api.users.syncUser);
+  const setTimezone = useMutation(api.users.setTimezone);
 
   const copyFamilyCode = async () => {
     if (userData?.familyCode) {
@@ -71,6 +71,16 @@ export default function AdminDashboard() {
       });
     }
   }, [session, userData, syncUser]);
+
+  // Auto-detect and save user's timezone
+  useEffect(() => {
+    if (userData?._id && !userData?.timezone) {
+      const detectedTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      if (detectedTimezone) {
+        setTimezone({ userId: userData._id, timezone: detectedTimezone });
+      }
+    }
+  }, [userData, setTimezone]);
 
   // Set first kid as selected by default
   useEffect(() => {
@@ -149,47 +159,7 @@ export default function AdminDashboard() {
   // Show trial expired screen
   if (userData.isTrialExpired) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-red-50 via-white to-orange-50 flex items-center justify-center p-6">
-        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center">
-          <div className="w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <svg className="w-10 h-10 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Your Free Trial Has Ended</h1>
-          <p className="text-gray-600 mb-6">
-            Your 7-day free trial has expired. Subscribe to continue using SafeTube and keep your kids safe on YouTube.
-          </p>
-
-          <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
-            <p className="text-red-700 font-medium">Your kids can no longer access their approved content</p>
-          </div>
-
-          <div className="space-y-3">
-            <a
-              href="mailto:support@getsafetube.com?subject=SafeTube%20Subscription"
-              className="w-full bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white py-3 rounded-xl font-semibold transition shadow-md flex items-center justify-center gap-2"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-              </svg>
-              Contact Us to Subscribe
-            </a>
-
-            <button
-              onClick={handleLogout}
-              className="w-full text-gray-500 hover:text-gray-700 py-2 transition"
-            >
-              Log Out
-            </button>
-          </div>
-
-          <p className="text-gray-400 text-sm mt-6">
-            Subscription options coming soon!
-          </p>
-        </div>
-      </div>
+      <TrialExpiredScreen userData={userData} onLogout={handleLogout} />
     );
   }
 
@@ -525,14 +495,32 @@ export default function AdminDashboard() {
   );
 }
 
-// Home tab component - now includes Kids management
+// Home tab component - simple dashboard overview
 function HomeTab({ userData, kidProfiles, userId, onNavigate, onCopyCode, codeCopied }) {
-  const [expandedKidId, setExpandedKidId] = useState(null);
-  const [showAddKid, setShowAddKid] = useState(false);
   const [showGettingStarted, setShowGettingStarted] = useState(() => {
-    // Show getting started by default if no kid profiles
     return !kidProfiles || kidProfiles.length === 0;
   });
+  const [showFullSetupGuide, setShowFullSetupGuide] = useState(false);
+
+  // Get time limits for kid status display (includes watchedMinutesToday)
+  const allTimeLimits = useQuery(
+    api.timeLimits.getTimeLimitsForUser,
+    userId ? { userId } : 'skip'
+  );
+
+  const updateProfile = useMutation(api.kidProfiles.updateKidProfile);
+
+  // Quick toggle pause for a kid
+  const handleQuickPause = async (kid) => {
+    try {
+      await updateProfile({
+        profileId: kid._id,
+        videoPaused: !kid.videoPaused,
+      });
+    } catch (err) {
+      console.error('Failed to toggle pause:', err);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -546,37 +534,43 @@ function HomeTab({ userData, kidProfiles, userId, onNavigate, onCopyCode, codeCo
             Your command center for managing kids' YouTube access
           </p>
         </div>
-        <button
-          onClick={onCopyCode}
-          className="bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 px-4 py-2 rounded-xl transition flex items-center gap-2 shadow-md"
-        >
-          <span className="text-lg font-mono font-bold text-white tracking-wider">
-            {userData.familyCode}
-          </span>
-          {codeCopied ? (
-            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-          ) : (
-            <svg className="w-5 h-5 text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-            </svg>
-          )}
-        </button>
+        <div className="text-right">
+          <button
+            onClick={onCopyCode}
+            className="bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 px-4 py-2 rounded-xl transition flex items-center gap-2 shadow-md"
+          >
+            <span className="text-lg font-mono font-bold text-white tracking-wider">
+              {userData.familyCode}
+            </span>
+            {codeCopied ? (
+              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            ) : (
+              <svg className="w-5 h-5 text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+            )}
+          </button>
+          <p className="text-xs text-gray-500 mt-1">Kids enter this at getsafetube.com/play</p>
+        </div>
       </div>
 
-      {/* Your Kids Section */}
+      {/* Kids Quick Status */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900">Your Kids</h2>
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">Your Kids</h2>
+            <p className="text-sm text-gray-500">Toggle switch pauses or enables video access instantly</p>
+          </div>
           <button
-            onClick={() => setShowAddKid(true)}
-            className="bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1 transition shadow-sm"
+            onClick={() => onNavigate('account')}
+            className="text-red-600 hover:text-red-700 text-sm font-medium flex items-center gap-1"
           >
+            Manage
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
-            Add Kid
           </button>
         </div>
 
@@ -590,22 +584,104 @@ function HomeTab({ userData, kidProfiles, userId, onNavigate, onCopyCode, codeCo
             <h3 className="text-lg font-semibold text-gray-900 mb-2">No kids yet</h3>
             <p className="text-gray-500 text-sm mb-4">Add a profile for each child to get started</p>
             <button
-              onClick={() => setShowAddKid(true)}
+              onClick={() => onNavigate('account')}
               className="bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white px-6 py-2 rounded-lg font-medium transition shadow-md"
             >
-              Add Your First Kid
+              Add Kids in Settings
             </button>
           </div>
         ) : (
-          <div className="divide-y divide-gray-100">
-            {kidProfiles.map((kid) => (
-              <KidCard
-                key={kid._id}
-                kid={kid}
-                isExpanded={expandedKidId === kid._id}
-                onToggle={() => setExpandedKidId(expandedKidId === kid._id ? null : kid._id)}
-              />
-            ))}
+          <div className="p-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {kidProfiles.map((kid) => {
+                const timeLimitData = allTimeLimits?.find(t => t.kidProfileId === kid._id);
+                const dailyLimit = timeLimitData?.limit?.dailyLimitMinutes || 0;
+                const watchedToday = timeLimitData?.watchedMinutesToday || 0;
+                const remainingMinutes = dailyLimit > 0 ? Math.max(0, dailyLimit - watchedToday) : null;
+                const isLimitReached = dailyLimit > 0 && remainingMinutes === 0;
+
+                const colorClass = {
+                  red: 'bg-red-500',
+                  orange: 'bg-orange-500',
+                  yellow: 'bg-yellow-500',
+                  green: 'bg-green-500',
+                  blue: 'bg-blue-500',
+                  purple: 'bg-purple-500',
+                  pink: 'bg-pink-500',
+                }[kid.color] || 'bg-red-500';
+
+                return (
+                  <div
+                    key={kid._id}
+                    className={`flex items-center gap-3 p-3 rounded-xl border ${
+                      kid.videoPaused ? 'bg-red-50 border-red-200' : isLimitReached ? 'bg-orange-50 border-orange-200' : 'bg-gray-50 border-gray-200'
+                    }`}
+                  >
+                    {/* Avatar */}
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold ${colorClass}`}>
+                      {kid.name.charAt(0).toUpperCase()}
+                    </div>
+
+                    {/* Name & Time Remaining */}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-medium text-gray-900 truncate">{kid.name}</h3>
+                      <div className="flex items-center gap-1 text-xs">
+                        <svg className={`w-3.5 h-3.5 flex-shrink-0 ${isLimitReached ? 'text-orange-500' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        {dailyLimit > 0 ? (
+                          <span className={isLimitReached ? 'text-orange-600 font-medium' : 'text-gray-500'}>
+                            {isLimitReached ? (
+                              'Limit reached'
+                            ) : (
+                              <>
+                                <span className="font-medium text-green-600">
+                                  {remainingMinutes >= 60
+                                    ? `${Math.floor(remainingMinutes / 60)}h ${remainingMinutes % 60}m`
+                                    : `${remainingMinutes}m`}
+                                </span>
+                                {' left'}
+                              </>
+                            )}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">Unlimited</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Quick Pause Toggle - iOS style switch */}
+                    <button
+                      onClick={() => handleQuickPause(kid)}
+                      className={`relative flex-shrink-0 w-14 h-8 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                        kid.videoPaused
+                          ? 'bg-gray-300 focus:ring-gray-400'
+                          : 'bg-green-500 focus:ring-green-500'
+                      }`}
+                      title={kid.videoPaused ? 'Video paused - tap to enable' : 'Video enabled - tap to pause'}
+                      aria-label={kid.videoPaused ? 'Enable video access' : 'Disable video access'}
+                    >
+                      <span
+                        className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full shadow-md transition-transform duration-200 flex items-center justify-center ${
+                          kid.videoPaused ? 'translate-x-0' : 'translate-x-6'
+                        }`}
+                      >
+                        {kid.videoPaused ? (
+                          <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                          </svg>
+                        ) : (
+                          <svg className="w-3.5 h-3.5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        )}
+                      </span>
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
       </div>
@@ -661,7 +737,7 @@ function HomeTab({ userData, kidProfiles, userId, onNavigate, onCopyCode, codeCo
             <ol className="space-y-3 text-gray-600 text-sm">
               <li className="flex gap-3">
                 <span className="flex-shrink-0 w-6 h-6 bg-gradient-to-r from-red-500 to-orange-500 rounded-full flex items-center justify-center text-white text-xs font-medium">1</span>
-                <span>Add a profile for each of your kids above</span>
+                <span>Go to <button onClick={() => onNavigate('account')} className="text-red-600 hover:underline font-medium">Settings</button> and add a profile for each kid</span>
               </li>
               <li className="flex gap-3">
                 <span className="flex-shrink-0 w-6 h-6 bg-gradient-to-r from-red-500 to-orange-500 rounded-full flex items-center justify-center text-white text-xs font-medium">2</span>
@@ -676,158 +752,164 @@ function HomeTab({ userData, kidProfiles, userId, onNavigate, onCopyCode, codeCo
                 <span>Kids visit <Link to="/play" className="text-red-600 hover:underline font-medium">getsafetube.com/play</Link> and enter the code</span>
               </li>
             </ol>
+            <button
+              onClick={() => setShowFullSetupGuide(true)}
+              className="mt-4 text-sm text-red-600 hover:text-red-700 font-medium flex items-center gap-1"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              View Full Setup Guide (Device Lockdown Instructions)
+            </button>
           </div>
         )}
       </div>
 
-      {/* Add Kid Modal */}
-      {showAddKid && (
-        <AddKidModal userId={userId} onClose={() => setShowAddKid(false)} />
-      )}
-    </div>
-  );
-}
-
-// Kid Card with expandable details
-function KidCard({ kid, isExpanded, onToggle }) {
-  return (
-    <div>
-      {/* Main card row */}
-      <div
-        className="p-4 flex items-center gap-4 cursor-pointer hover:bg-gray-50 transition"
-        onClick={onToggle}
-      >
-        <div
-          className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg flex-shrink-0"
-          style={{ backgroundColor: kid.color || '#ef4444' }}
-        >
-          {kid.name.charAt(0).toUpperCase()}
-        </div>
-        <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-gray-900">{kid.name}</h3>
-          <p className="text-gray-500 text-sm truncate">
-            {kid.timeLimitMinutes ? `${kid.timeLimitMinutes} min daily limit` : 'No time limit'}
-          </p>
-        </div>
-        <svg className={`w-5 h-5 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
-      </div>
-
-      {/* Expanded content */}
-      {isExpanded && (
-        <div className="px-4 pb-4 space-y-4">
-          <div className="bg-gray-50 rounded-xl p-4 space-y-3">
-            {/* Time Limit */}
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">Daily Time Limit</span>
-              <span className="text-sm font-medium text-gray-900">
-                {kid.timeLimitMinutes ? `${kid.timeLimitMinutes} minutes` : 'Unlimited'}
-              </span>
+      {/* Full Setup Guide Modal */}
+      {showFullSetupGuide && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto" onClick={() => setShowFullSetupGuide(false)}>
+          <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-gray-900">Full Setup Guide</h2>
+              <button
+                onClick={() => setShowFullSetupGuide(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition"
+              >
+                <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </div>
-            {/* Requests Toggle */}
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">Can Request Videos</span>
-              <span className={`text-sm font-medium ${kid.canRequest !== false ? 'text-green-600' : 'text-gray-400'}`}>
-                {kid.canRequest !== false ? 'Yes' : 'No'}
-              </span>
-            </div>
-            {/* PIN */}
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">PIN Protection</span>
-              <span className={`text-sm font-medium ${kid.pin ? 'text-green-600' : 'text-gray-400'}`}>
-                {kid.pin ? 'Enabled' : 'None'}
-              </span>
+            <div className="p-6">
+              <GettingStarted userData={userData} onNavigate={(tab) => {
+                setShowFullSetupGuide(false);
+                onNavigate(tab);
+              }} />
             </div>
           </div>
-          {/* Edit button placeholder - links to full KidsManager */}
-          <button className="w-full py-2 text-sm text-red-600 hover:text-red-700 font-medium">
-            Edit Profile Settings →
-          </button>
         </div>
       )}
     </div>
   );
 }
 
-// Add Kid Modal
-function AddKidModal({ userId, onClose }) {
-  const [name, setName] = useState('');
-  const [color, setColor] = useState('#ef4444');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const createKidProfile = useMutation(api.kidProfiles.createKidProfile);
+// Trial expired screen with promo code option
+function TrialExpiredScreen({ userData, onLogout }) {
+  const [showPromoInput, setShowPromoInput] = useState(false);
+  const [promoCode, setPromoCode] = useState('');
+  const [promoError, setPromoError] = useState('');
+  const [isApplying, setIsApplying] = useState(false);
 
-  const colors = [
-    '#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899'
-  ];
+  const syncUser = useMutation(api.users.syncUser);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!name.trim()) return;
+  // Valid promo codes (checked client-side for instant feedback)
+  const validPromoCodes = ['DAWSFRIEND', 'DEWITT'];
 
-    setIsSubmitting(true);
+  const handleApplyPromo = async () => {
+    if (!promoCode.trim()) return;
+
+    // Client-side validation for instant feedback
+    if (!validPromoCodes.includes(promoCode.trim().toUpperCase())) {
+      setPromoError('Invalid promo code');
+      return;
+    }
+
+    setIsApplying(true);
+    setPromoError('');
+
     try {
-      await createKidProfile({
-        userId,
-        name: name.trim(),
-        color,
+      // Use syncUser with promo code to upgrade to lifetime
+      await syncUser({
+        email: userData.email,
+        name: userData.name,
+        promoCode: promoCode.trim(),
       });
-      onClose();
+
+      // Reload the page to refresh user data
+      window.location.reload();
     } catch (err) {
-      console.error('Failed to create profile:', err);
+      setPromoError('Something went wrong. Please try again.');
     } finally {
-      setIsSubmitting(false);
+      setIsApplying(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
-        <h2 className="text-xl font-bold text-gray-900 mb-4">Add Kid Profile</h2>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Enter kid's name"
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent"
-              autoFocus
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Color</label>
-            <div className="flex gap-2">
-              {colors.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => setColor(c)}
-                  className={`w-8 h-8 rounded-full transition ${color === c ? 'ring-2 ring-offset-2 ring-gray-400' : ''}`}
-                  style={{ backgroundColor: c }}
+    <div className="min-h-screen bg-gradient-to-br from-red-50 via-white to-orange-50 flex items-center justify-center p-6">
+      <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center">
+        <div className="w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-6">
+          <svg className="w-10 h-10 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">Your Free Trial Has Ended</h1>
+        <p className="text-gray-600 mb-6">
+          Your 7-day free trial has expired. Subscribe to continue using SafeTube and keep your kids safe on YouTube.
+        </p>
+
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
+          <p className="text-red-700 font-medium">Your kids can no longer access their approved content</p>
+        </div>
+
+        <div className="space-y-3">
+          <a
+            href="mailto:jeremiah@getsafetube.com?subject=SafeTube%20Subscription"
+            className="w-full bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white py-3 rounded-xl font-semibold transition shadow-md flex items-center justify-center gap-2"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+            Contact Us to Subscribe
+          </a>
+
+          <button
+            onClick={onLogout}
+            className="w-full text-gray-500 hover:text-gray-700 py-2 transition"
+          >
+            Log Out
+          </button>
+        </div>
+
+        {/* Promo code section - subtle link */}
+        <div className="mt-6 pt-6 border-t border-gray-100">
+          {!showPromoInput ? (
+            <button
+              onClick={() => setShowPromoInput(true)}
+              className="text-gray-400 hover:text-gray-600 text-sm transition"
+            >
+              Have a promo code?
+            </button>
+          ) : (
+            <div className="space-y-3">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={promoCode}
+                  onChange={(e) => {
+                    setPromoCode(e.target.value.toUpperCase());
+                    setPromoError('');
+                  }}
+                  placeholder="Enter code"
+                  className="flex-1 px-4 py-2 border border-gray-200 rounded-lg text-center font-mono uppercase focus:outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100"
+                  autoFocus
                 />
-              ))}
+                <button
+                  onClick={handleApplyPromo}
+                  disabled={isApplying || !promoCode.trim()}
+                  className="px-4 py-2 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 disabled:from-gray-300 disabled:to-gray-400 text-white rounded-lg font-medium transition"
+                >
+                  {isApplying ? '...' : 'Apply'}
+                </button>
+              </div>
+              {promoError && (
+                <p className="text-red-500 text-sm">{promoError}</p>
+              )}
             </div>
-          </div>
-          <div className="flex gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={!name.trim() || isSubmitting}
-              className="flex-1 px-4 py-3 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 disabled:from-gray-300 disabled:to-gray-400 text-white rounded-xl font-medium transition"
-            >
-              {isSubmitting ? 'Adding...' : 'Add Kid'}
-            </button>
-          </div>
-        </form>
+          )}
+        </div>
       </div>
     </div>
   );
 }
+

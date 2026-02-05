@@ -5,8 +5,8 @@ import { DataModel } from "./_generated/dataModel";
 import { query } from "./_generated/server";
 import { betterAuth } from "better-auth";
 
-// SITE_URL should be the Convex site URL for auth endpoint operations
-const siteUrl = process.env.SITE_URL || "https://rightful-rabbit-333.convex.site";
+// baseURL must be the Convex site URL where auth endpoints live
+const siteUrl = "https://rightful-rabbit-333.convex.site";
 
 export const authComponent = createClient<DataModel>(components.betterAuth);
 

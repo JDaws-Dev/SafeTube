@@ -48,7 +48,7 @@ function ConfirmModal({ isOpen, title, message, onConfirm, onCancel }) {
 export default function KidProfilesManager({ userId, kidProfiles }) {
   const [isCreating, setIsCreating] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [formData, setFormData] = useState({ name: '', color: 'red', shortsEnabled: true, requestsEnabled: true });
+  const [formData, setFormData] = useState({ name: '', color: 'red', requestsEnabled: true });
   const [isLoading, setIsLoading] = useState(false);
   const [confirmModal, setConfirmModal] = useState(null);
 
@@ -65,10 +65,9 @@ export default function KidProfilesManager({ userId, kidProfiles }) {
         name: formData.name.trim(),
         icon: 'none', // No icon, just color
         color: formData.color,
-        shortsEnabled: formData.shortsEnabled,
         requestsEnabled: formData.requestsEnabled,
       });
-      setFormData({ name: '', color: 'red', shortsEnabled: true, requestsEnabled: true });
+      setFormData({ name: '', color: 'red', requestsEnabled: true });
       setIsCreating(false);
     } catch (err) {
       console.error('Failed to create profile:', err);
@@ -86,11 +85,10 @@ export default function KidProfilesManager({ userId, kidProfiles }) {
         name: formData.name.trim(),
         icon: 'none', // No icon, just color
         color: formData.color,
-        shortsEnabled: formData.shortsEnabled,
         requestsEnabled: formData.requestsEnabled,
       });
       setEditingId(null);
-      setFormData({ name: '', color: 'red', shortsEnabled: true, requestsEnabled: true });
+      setFormData({ name: '', color: 'red', requestsEnabled: true });
     } catch (err) {
       console.error('Failed to update profile:', err);
     } finally {
@@ -118,7 +116,6 @@ export default function KidProfilesManager({ userId, kidProfiles }) {
     setFormData({
       name: profile.name,
       color: profile.color || 'red',
-      shortsEnabled: profile.shortsEnabled !== false, // default true
       requestsEnabled: profile.requestsEnabled !== false, // default true
     });
     setIsCreating(false);
@@ -128,13 +125,13 @@ export default function KidProfilesManager({ userId, kidProfiles }) {
     setIsCreating(true);
     setEditingId(null);
     const randomColor = COLORS[Math.floor(Math.random() * COLORS.length)].id;
-    setFormData({ name: '', color: randomColor, shortsEnabled: true, requestsEnabled: true });
+    setFormData({ name: '', color: randomColor, requestsEnabled: true });
   };
 
   const cancelForm = () => {
     setIsCreating(false);
     setEditingId(null);
-    setFormData({ name: '', color: 'red', shortsEnabled: true, requestsEnabled: true });
+    setFormData({ name: '', color: 'red', requestsEnabled: true });
   };
 
   return (
@@ -215,27 +212,6 @@ export default function KidProfilesManager({ userId, kidProfiles }) {
             {/* Content Settings */}
             <div className="pt-4 border-t border-gray-100">
               <h4 className="text-sm font-medium text-gray-900 mb-3">Content Settings</h4>
-
-              {/* Shorts Toggle */}
-              <div className="flex items-center justify-between py-2">
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Allow YouTube Shorts</label>
-                  <p className="text-xs text-gray-500">Short-form videos (under 60 seconds)</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, shortsEnabled: !formData.shortsEnabled })}
-                  className={`relative w-11 h-6 rounded-full transition-colors ${
-                    formData.shortsEnabled ? 'bg-green-500' : 'bg-gray-300'
-                  }`}
-                >
-                  <span
-                    className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
-                      formData.shortsEnabled ? 'translate-x-5' : 'translate-x-0'
-                    }`}
-                  />
-                </button>
-              </div>
 
               {/* Allow Requests Toggle */}
               <div className="flex items-center justify-between py-2">

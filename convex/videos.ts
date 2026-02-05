@@ -201,6 +201,7 @@ export const addVideoToMultipleKids = mutation({
         duration: args.duration,
         durationSeconds: args.durationSeconds,
         madeForKids: args.madeForKids,
+        isShort: args.durationSeconds <= 180, // YouTube Shorts are ≤3 minutes (180 seconds)
         publishedAt: args.publishedAt,
         addedAt: Date.now(),
       });
@@ -212,7 +213,7 @@ export const addVideoToMultipleKids = mutation({
   },
 });
 
-// Remove a video from approved list
+// Remove a video from approved list (also clears watch history for that video)
 export const removeApprovedVideo = mutation({
   args: {
     kidProfileId: v.id("kidProfiles"),
@@ -228,6 +229,17 @@ export const removeApprovedVideo = mutation({
 
     if (video) {
       await ctx.db.delete(video._id);
+    }
+
+    // Also remove from watch history so it doesn't show in "Recently Watched"
+    const watchHistory = await ctx.db
+      .query("watchHistory")
+      .withIndex("by_kid_recent", (q) => q.eq("kidProfileId", args.kidProfileId))
+      .filter((q) => q.eq(q.field("videoId"), args.videoId))
+      .collect();
+
+    for (const h of watchHistory) {
+      await ctx.db.delete(h._id);
     }
   },
 });

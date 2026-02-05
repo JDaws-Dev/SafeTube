@@ -1,6 +1,7 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, internalMutation } from "./_generated/server";
 import { authComponent } from "./auth";
+import { api } from "./_generated/api";
 
 // Generate a random 6-character family code
 function generateFamilyCode(): string {
@@ -36,12 +37,18 @@ export const getUserByEmail = query({
 });
 
 // Create or sync user from auth
+// Can also apply promo code to grant lifetime access
 export const syncUser = mutation({
   args: {
     email: v.string(),
     name: v.optional(v.string()),
+    promoCode: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    // Valid lifetime promo codes
+    const lifetimeCodes = ["DAWSFRIEND", "DEWITT"];
+    const hasValidPromo = args.promoCode && lifetimeCodes.includes(args.promoCode.toUpperCase());
+
     // Check if user exists
     const existing = await ctx.db
       .query("users")
@@ -49,6 +56,13 @@ export const syncUser = mutation({
       .first();
 
     if (existing) {
+      // If valid promo code provided, upgrade to lifetime
+      if (hasValidPromo) {
+        await ctx.db.patch(existing._id, {
+          subscriptionStatus: "lifetime",
+          couponCode: args.promoCode!.toUpperCase(),
+        });
+      }
       return existing._id;
     }
 
@@ -65,7 +79,7 @@ export const syncUser = mutation({
       attempts++;
     }
 
-    // Create new user with 7-day trial
+    // Create new user with 7-day trial (or lifetime if valid promo code)
     const now = Date.now();
     const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
 
@@ -73,10 +87,17 @@ export const syncUser = mutation({
       email: args.email,
       name: args.name,
       familyCode,
-      subscriptionStatus: "trial",
-      trialEndsAt: now + sevenDaysMs,
+      subscriptionStatus: hasValidPromo ? "lifetime" : "trial",
+      couponCode: hasValidPromo ? args.promoCode!.toUpperCase() : undefined,
+      trialEndsAt: hasValidPromo ? undefined : now + sevenDaysMs,
       onboardingCompleted: false,
       createdAt: now,
+    });
+
+    // Schedule welcome emails from backend (guarantees correct name from DB)
+    await ctx.scheduler.runAfter(0, api.emails.sendTrialSignupEmails, {
+      userEmail: args.email,
+      userName: args.name || "there",
     });
 
     return userId;
@@ -160,5 +181,169 @@ export const checkOnboardingStatus = query({
         trialEndsAt: user.trialEndsAt,
       },
     };
+  },
+});
+
+// Set user timezone
+export const setTimezone = mutation({
+  args: {
+    userId: v.id("users"),
+    timezone: v.string(),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.userId, {
+      timezone: args.timezone,
+    });
+  },
+});
+
+// Get user timezone
+export const getTimezone = query({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const user = await ctx.db.get(args.userId);
+    return user?.timezone || null;
+  },
+});
+
+// Grant lifetime subscription to a user by email (admin use)
+export const grantLifetime = mutation({
+  args: { email: v.string() },
+  handler: async (ctx, args) => {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", args.email))
+      .first();
+
+    if (!user) {
+      throw new Error(`User not found: ${args.email}`);
+    }
+
+    await ctx.db.patch(user._id, {
+      subscriptionStatus: "lifetime",
+      couponCode: "DAWSFRIEND",
+      // Note: Don't patch trialEndsAt - leave it as is (undefined causes Convex error)
+    });
+
+    return { success: true, email: args.email };
+  },
+});
+
+// Apply a promo code to unlock lifetime access (user-facing)
+export const applyPromoCode = mutation({
+  args: { userId: v.id("users"), promoCode: v.string() },
+  handler: async (ctx, args) => {
+    const lifetimeCodes = ["DAWSFRIEND", "DEWITT"];
+    const codeUpper = args.promoCode.trim().toUpperCase();
+
+    if (!lifetimeCodes.includes(codeUpper)) {
+      return { success: false, error: "Invalid promo code" };
+    }
+
+    const user = await ctx.db.get(args.userId);
+    if (!user) {
+      return { success: false, error: "User not found" };
+    }
+
+    // Set to lifetime subscription - trialEndsAt set far in future to avoid expiration checks
+    await ctx.db.patch(args.userId, {
+      subscriptionStatus: "lifetime",
+      couponCode: codeUpper,
+      trialEndsAt: Date.now() + (365 * 100 * 24 * 60 * 60 * 1000), // 100 years from now
+    });
+
+    return { success: true };
+  },
+});
+
+// Update user subscription status (called from Stripe webhook)
+export const updateSubscriptionStatus = mutation({
+  args: {
+    email: v.string(),
+    subscriptionStatus: v.string(),
+    subscriptionId: v.string(),
+    stripeCustomerId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", args.email))
+      .first();
+
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    await ctx.db.patch(user._id, {
+      subscriptionStatus: args.subscriptionStatus,
+      subscriptionId: args.subscriptionId,
+      stripeCustomerId: args.stripeCustomerId,
+    });
+  },
+});
+
+// Update subscription by Stripe subscription ID (for webhook events that don't have email)
+export const updateSubscriptionByStripeId = mutation({
+  args: {
+    subscriptionId: v.string(),
+    subscriptionStatus: v.string(),
+    subscriptionEndsAt: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_subscription", (q) => q.eq("subscriptionId", args.subscriptionId))
+      .first();
+
+    if (!user) {
+      console.error("User not found for subscription:", args.subscriptionId);
+      return;
+    }
+
+    const updates: Record<string, any> = {
+      subscriptionStatus: args.subscriptionStatus,
+    };
+
+    // Only include subscriptionEndsAt if it's defined
+    if (args.subscriptionEndsAt !== undefined) {
+      updates.subscriptionEndsAt = args.subscriptionEndsAt;
+    }
+
+    await ctx.db.patch(user._id, updates);
+  },
+});
+
+// Internal mutation to set subscription status by email (for admin HTTP endpoint)
+export const setSubscriptionStatusByEmailInternal = internalMutation({
+  args: {
+    email: v.string(),
+    status: v.string(),
+    stripeCustomerId: v.optional(v.string()),
+    subscriptionId: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", args.email))
+      .first();
+
+    if (!user) {
+      throw new Error(`User not found: ${args.email}`);
+    }
+
+    const updates: Record<string, string> = {
+      subscriptionStatus: args.status,
+    };
+
+    if (args.stripeCustomerId) {
+      updates.stripeCustomerId = args.stripeCustomerId;
+    }
+    if (args.subscriptionId) {
+      updates.subscriptionId = args.subscriptionId;
+    }
+
+    await ctx.db.patch(user._id, updates);
+
+    console.log(`Set subscription status for ${args.email} to ${args.status}`);
   },
 });

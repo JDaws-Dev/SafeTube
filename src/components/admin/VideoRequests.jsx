@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useAction } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { formatDuration, getChannelVideos, getChannelDetails } from '../../config/youtube';
@@ -67,6 +67,10 @@ export default function VideoRequests({ userId }) {
   const [channelDetails, setChannelDetails] = useState(null);
   const [loadingVideos, setLoadingVideos] = useState(false);
   const [videoError, setVideoError] = useState(null);
+
+  // Video playback state
+  const [playingVideoId, setPlayingVideoId] = useState(null);
+  const [playingVideoMeta, setPlayingVideoMeta] = useState(null);
 
   // AI Review state
   const [isReviewingChannel, setIsReviewingChannel] = useState(false);
@@ -324,6 +328,90 @@ export default function VideoRequests({ userId }) {
         </div>
       )}
 
+      {/* Video Player Modal */}
+      {playingVideoId && (
+        <div
+          className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
+          onClick={() => {
+            setPlayingVideoId(null);
+            setPlayingVideoMeta(null);
+          }}
+        >
+          <div
+            className="bg-gray-900 rounded-2xl overflow-hidden w-full max-w-3xl shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Video Player Header */}
+            <div className="flex items-center justify-between px-4 py-3 bg-gray-800">
+              <div className="flex-1 min-w-0">
+                <h3 className="text-white font-medium text-sm truncate">
+                  {playingVideoMeta?.title || 'Video Preview'}
+                </h3>
+                {playingVideoMeta?.channelTitle && (
+                  <p className="text-gray-400 text-xs truncate">{playingVideoMeta.channelTitle}</p>
+                )}
+              </div>
+              <button
+                onClick={() => {
+                  setPlayingVideoId(null);
+                  setPlayingVideoMeta(null);
+                }}
+                className="ml-4 p-2 text-gray-400 hover:text-white transition rounded-lg hover:bg-gray-700"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* YouTube Embed */}
+            <div className="aspect-video bg-black">
+              <iframe
+                src={`https://www.youtube-nocookie.com/embed/${playingVideoId}?autoplay=1&rel=0&modestbranding=1`}
+                title={playingVideoMeta?.title || 'Video Preview'}
+                className="w-full h-full"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            </div>
+
+            {/* Video Info Footer */}
+            <div className="px-4 py-3 bg-gray-800 flex items-center justify-between">
+              <div className="flex items-center gap-3 text-xs text-gray-400">
+                {playingVideoMeta?.durationSeconds && (
+                  <span className="flex items-center gap-1">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    {formatDuration(playingVideoMeta.durationSeconds)}
+                  </span>
+                )}
+                <a
+                  href={`https://www.youtube.com/watch?v=${playingVideoId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 hover:text-red-400 transition"
+                >
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                  </svg>
+                  Open on YouTube
+                </a>
+              </div>
+              <button
+                onClick={() => {
+                  setPlayingVideoId(null);
+                  setPlayingVideoMeta(null);
+                }}
+                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium rounded-lg transition"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Request list */}
       <div className="space-y-3">
         {requests.map((request) => (
@@ -483,6 +571,27 @@ export default function VideoRequests({ userId }) {
                 )}
               </div>
             </div>
+
+            {/* Watch Video button for video requests */}
+            {request.type === 'video' && request.videoId && (
+              <button
+                onClick={() => {
+                  setPlayingVideoId(request.videoId);
+                  setPlayingVideoMeta({
+                    title: request.title,
+                    channelTitle: request.channelTitle,
+                    thumbnailUrl: request.thumbnailUrl,
+                    durationSeconds: request.durationSeconds,
+                  });
+                }}
+                className="w-full py-2 text-sm font-medium border-t border-gray-100 text-red-600 hover:bg-red-50 transition flex items-center justify-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M8 5v14l11-7z" />
+                </svg>
+                Watch Video
+              </button>
+            )}
 
             {/* Preview Videos button for channel requests */}
             {request.type === 'channel' && (

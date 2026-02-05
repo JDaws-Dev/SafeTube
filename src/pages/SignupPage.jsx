@@ -13,9 +13,17 @@ export default function SignupPage() {
     email: '',
     password: '',
     confirmPassword: '',
+    promoCode: '',
   });
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showPromoCode, setShowPromoCode] = useState(false);
+
+  // Check if promo code is valid for lifetime access
+  const lifetimeCodes = ['DAWSFRIEND', 'DEWITT'];
+  const promoTrimmed = formData.promoCode.trim().toUpperCase();
+  const isLifetimeCode = lifetimeCodes.includes(promoTrimmed);
+  const hasInvalidCode = promoTrimmed.length > 0 && !isLifetimeCode;
 
   // Calculate trial end date (7 days from now)
   const trialEndDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', {
@@ -54,10 +62,12 @@ export default function SignupPage() {
         return;
       }
 
-      // Sync user to our database
+      // Sync user to our database (with promo code if provided)
+      // This also triggers welcome emails from the backend
       await syncUser({
         email: formData.email,
         name: formData.name,
+        promoCode: formData.promoCode.trim() || undefined,
       });
 
       // Navigate to onboarding
@@ -88,9 +98,18 @@ export default function SignupPage() {
       {/* Signup Form */}
       <main className="flex-1 flex items-center justify-center px-6 py-12">
         <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
-          <h1 className="text-3xl font-bold text-gray-900 text-center mb-2">Start Your Free Trial</h1>
-          <p className="text-gray-500 text-center mb-2">7 days free. No credit card required.</p>
-          <p className="text-red-500 text-sm text-center mb-6">Your trial includes full access until {trialEndDate}</p>
+          <h1 className="text-3xl font-bold text-gray-900 text-center mb-2">
+            {isLifetimeCode ? 'Get Lifetime Access' : 'Start Your Free Trial'}
+          </h1>
+          <p className="text-gray-500 text-center mb-2">
+            {isLifetimeCode ? 'Your promo code unlocks full access forever!' : '7 days free. No credit card required.'}
+          </p>
+          {!isLifetimeCode && (
+            <p className="text-red-500 text-sm text-center mb-6">Your trial includes full access until {trialEndDate}</p>
+          )}
+          {isLifetimeCode && (
+            <p className="text-green-600 text-sm text-center mb-6 font-medium">Lifetime access unlocked!</p>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
@@ -160,12 +179,62 @@ export default function SignupPage() {
               />
             </div>
 
+            {/* Promo Code Section */}
+            <div>
+              {!showPromoCode ? (
+                <button
+                  type="button"
+                  onClick={() => setShowPromoCode(true)}
+                  className="text-sm text-red-600 hover:text-red-700 font-medium"
+                >
+                  Have a promo code?
+                </button>
+              ) : (
+                <div>
+                  <label htmlFor="promoCode" className="block text-sm font-medium text-gray-700 mb-1">
+                    Promo Code
+                  </label>
+                  <input
+                    id="promoCode"
+                    type="text"
+                    value={formData.promoCode}
+                    onChange={(e) => setFormData({ ...formData, promoCode: e.target.value.toUpperCase() })}
+                    className={`w-full border rounded-lg px-4 py-3 placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent ${
+                      isLifetimeCode
+                        ? 'bg-green-50 border-green-300 text-green-800 focus:ring-green-500'
+                        : hasInvalidCode
+                        ? 'bg-red-50 border-red-300 text-red-800 focus:ring-red-500'
+                        : 'bg-gray-50 border-gray-200 text-gray-900 focus:ring-red-500'
+                    }`}
+                    placeholder="Enter code"
+                  />
+                  {isLifetimeCode && (
+                    <p className="text-green-600 text-sm mt-1 flex items-center gap-1">
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                      Lifetime access unlocked!
+                    </p>
+                  )}
+                  {hasInvalidCode && (
+                    <p className="text-red-500 text-sm mt-1">
+                      Invalid code - you'll start with a 7-day trial
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed text-white py-3 rounded-lg font-semibold transition shadow-md"
+              className={`w-full py-3 rounded-lg font-semibold transition shadow-md text-white ${
+                isLifetimeCode
+                  ? 'bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600'
+                  : 'bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600'
+              } disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed`}
             >
-              {isLoading ? 'Creating account...' : 'Start Free Trial'}
+              {isLoading ? 'Creating account...' : isLifetimeCode ? 'Get Lifetime Access' : 'Start Free Trial'}
             </button>
           </form>
 

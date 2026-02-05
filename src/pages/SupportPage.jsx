@@ -20,7 +20,7 @@ export default function SupportPage() {
     const mailtoBody = encodeURIComponent(
       `Name: ${formData.name}\nEmail: ${formData.email}\n\nMessage:\n${formData.message}`
     );
-    const mailtoLink = `mailto:jeremiah@getsafetunes.com?subject=${mailtoSubject}&body=${mailtoBody}`;
+    const mailtoLink = `mailto:jeremiah@getsafetube.com?subject=${mailtoSubject}&body=${mailtoBody}`;
 
     // Open email client
     window.location.href = mailtoLink;
@@ -75,10 +75,10 @@ export default function SupportPage() {
             <div className="flex-1">
               <h3 className="font-semibold text-gray-900">Email Us Directly</h3>
               <a
-                href="mailto:jeremiah@getsafetunes.com"
+                href="mailto:jeremiah@getsafetube.com"
                 className="text-red-500 hover:text-red-600 font-medium"
               >
-                jeremiah@getsafetunes.com
+                jeremiah@getsafetube.com
               </a>
             </div>
           </div>
