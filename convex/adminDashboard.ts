@@ -20,11 +20,9 @@ export default httpAction(async (ctx, request) => {
     const url = new URL(request.url);
     const secretKey = url.searchParams.get("key");
     const format = url.searchParams.get("format"); // "json" for API access
-    const ADMIN_SECRET =
-      process.env.ADMIN_SECRET_KEY ||
-      "IscYPRsiaDdpuN378QS5tEvp2uCT+UHPyHpZG6lVko4=";
+    const ADMIN_SECRET = process.env.ADMIN_KEY;
 
-    if (secretKey !== ADMIN_SECRET) {
+    if (!ADMIN_SECRET || secretKey !== ADMIN_SECRET) {
       if (format === "json") {
         return new Response(JSON.stringify({ error: "Unauthorized" }), {
           status: 403,

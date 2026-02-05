@@ -1,8 +1,8 @@
 import { httpAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 
-// Admin key for authentication
-const ADMIN_KEY = "IscYPRsiaDdpuN378QS5tEvp2uCT+UHPyHpZG6lVko4=";
+// Admin key from environment variable
+const ADMIN_KEY = process.env.ADMIN_KEY;
 
 // HTTP endpoint to delete a user and their associated data
 // Usage: /deleteUser?email=user@example.com&key=YOUR_KEY
@@ -12,7 +12,7 @@ export default httpAction(async (ctx, request) => {
   const key = url.searchParams.get("key");
 
   // Validate admin key
-  if (key !== ADMIN_KEY) {
+  if (!ADMIN_KEY || key !== ADMIN_KEY) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,
       headers: { "Content-Type": "application/json" },
