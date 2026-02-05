@@ -1,14 +1,36 @@
 import { httpAction } from "./_generated/server";
 import { api } from "./_generated/api";
 
+// CORS headers for cross-origin API access from marketing site
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+};
+
 // Admin-only HTTP endpoint - completely server-side
+// Supports both HTML (default) and JSON (format=json) responses
 export default httpAction(async (ctx, request) => {
+  // Handle CORS preflight
+  if (request.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: CORS_HEADERS });
+  }
+
   try {
     const url = new URL(request.url);
     const secretKey = url.searchParams.get("key");
-    const ADMIN_SECRET = process.env.ADMIN_SECRET_KEY || "safetube-admin-2024";
+    const format = url.searchParams.get("format"); // "json" for API access
+    const ADMIN_SECRET =
+      process.env.ADMIN_SECRET_KEY ||
+      "IscYPRsiaDdpuN378QS5tEvp2uCT+UHPyHpZG6lVko4=";
 
     if (secretKey !== ADMIN_SECRET) {
+      if (format === "json") {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 403,
+          headers: { "Content-Type": "application/json", ...CORS_HEADERS },
+        });
+      }
       return new Response(
         `<!DOCTYPE html>
 <html>
@@ -34,7 +56,35 @@ export default httpAction(async (ctx, request) => {
     // Fetch all users with kid counts
     const users = await ctx.runQuery(api.admin.getAllUsersWithKids);
 
-    // Calculate metrics
+    // Sort by createdAt descending (newest first)
+    users.sort((a, b) => {
+      const aTime = a.createdAt || 0;
+      const bTime = b.createdAt || 0;
+      return bTime - aTime;
+    });
+
+    // Return JSON for API access (marketing site admin dashboard)
+    if (format === "json") {
+      const jsonUsers = users.map((user) => ({
+        email: user.email,
+        name: user.name || null,
+        subscriptionStatus: user.subscriptionStatus || "unknown",
+        createdAt: user.createdAt || null,
+        kidCount: user.kidCount || 0,
+        channelCount: user.channelCount || 0,
+        videoCount: user.videoCount || 0,
+        familyCode: user.familyCode || null,
+        trialEndsAt: user.trialEndsAt || null,
+        stripeCustomerId: user.stripeCustomerId || null,
+      }));
+
+      return new Response(JSON.stringify(jsonUsers), {
+        status: 200,
+        headers: { "Content-Type": "application/json", ...CORS_HEADERS },
+      });
+    }
+
+    // Calculate metrics for HTML dashboard
     const totalUsers = users.length;
     const activeSubscriptions = users.filter(u => u.subscriptionStatus === 'active').length;
     const trialUsers = users.filter(u => u.subscriptionStatus === 'trial').length;
@@ -166,7 +216,7 @@ export default httpAction(async (ctx, request) => {
       }),
       {
         status: 500,
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...CORS_HEADERS },
       }
     );
   }

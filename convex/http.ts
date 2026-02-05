@@ -16,6 +16,13 @@ http.route({
   handler: adminDashboard,
 });
 
+// Admin dashboard CORS preflight
+http.route({
+  path: "/adminDashboard",
+  method: "OPTIONS",
+  handler: adminDashboard,
+});
+
 // Stripe webhook route
 http.route({
   path: "/stripe",
