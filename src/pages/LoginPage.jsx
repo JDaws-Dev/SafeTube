@@ -110,8 +110,8 @@ export default function LoginPage() {
       {/* Login Form */}
       <main className="flex-1 flex items-center justify-center px-6 py-12">
         <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
-          <h1 className="text-3xl font-bold text-gray-900 text-center mb-2">Welcome Back</h1>
-          <p className="text-gray-500 text-center mb-8">Log in to manage your kids' content</p>
+          <h1 className="text-3xl font-bold text-gray-900 text-center mb-2">Welcome back</h1>
+          <p className="text-gray-500 text-center mb-8">Sign in to continue to SafeTube</p>
 
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm mb-6">
@@ -169,12 +169,12 @@ export default function LoginPage() {
                 <label htmlFor="password" className="block text-sm font-medium text-gray-700">
                   Password
                 </label>
-                <a
-                  href="mailto:jeremiah@getsafetube.com?subject=Password%20Reset%20Request"
-                  className="text-sm text-red-600 hover:text-red-700"
-                >
-                  Forgot password?
-                </a>
+                <Link
+                to="/forgot-password"
+                className="text-sm text-red-600 hover:text-red-700"
+              >
+                Forgot password?
+              </Link>
               </div>
               <input
                 id="password"
@@ -192,14 +192,14 @@ export default function LoginPage() {
               disabled={loading || googleLoading}
               className="w-full bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed text-white py-3 rounded-lg font-semibold transition shadow-md"
             >
-              {loading ? 'Logging in...' : 'Log In'}
+              {loading ? 'Signing in...' : 'Sign In'}
             </button>
           </form>
 
           <p className="text-center text-gray-500 mt-6">
-            Don't have an account?{' '}
+            Don&apos;t have an account?{' '}
             <Link to="/signup" className="text-red-600 hover:text-red-700 font-medium">
-              Sign up
+              Start free trial
             </Link>
           </p>
 

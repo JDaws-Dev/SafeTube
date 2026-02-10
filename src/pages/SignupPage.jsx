@@ -296,12 +296,37 @@ export default function SignupPage() {
             </button>
           </form>
 
+          {/* Trust signals */}
+          <div className="mt-6 flex items-center justify-center gap-4 text-sm text-gray-500">
+            <span className="flex items-center gap-1">
+              <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+              </svg>
+              No credit card
+            </span>
+            <span className="flex items-center gap-1">
+              <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+              </svg>
+              Cancel anytime
+            </span>
+          </div>
+
           <p className="text-center text-gray-500 mt-6">
             Already have an account?{' '}
             <Link to="/login" className="text-red-600 hover:text-red-700 font-medium">
-              Log in
+              Sign in
             </Link>
           </p>
+
+          <div className="mt-6 pt-6 border-t border-gray-200">
+            <p className="text-xs text-gray-500 text-center">
+              By signing up, you agree to our{' '}
+              <Link to="/terms" className="text-red-600 hover:text-red-700">Terms</Link>
+              {' '}and{' '}
+              <Link to="/privacy" className="text-red-600 hover:text-red-700">Privacy Policy</Link>.
+            </p>
+          </div>
         </div>
       </main>
     </div>
