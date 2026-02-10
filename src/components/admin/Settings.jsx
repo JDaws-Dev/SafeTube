@@ -71,6 +71,12 @@ export default function Settings({ userData, onLogout }) {
   const [confirmModal, setConfirmModal] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Account deletion state
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+  const deleteOwnAccount = useMutation(api.admin.deleteOwnAccount);
+
   // Get kid profiles
   const kidProfiles = useQuery(
     api.kidProfiles.getKidProfiles,
@@ -411,24 +417,60 @@ export default function Settings({ userData, onLogout }) {
               </svg>
             </div>
             <h3 className="text-xl font-bold text-gray-900 text-center mb-2">Delete Account?</h3>
-            <p className="text-gray-600 text-center mb-6">
+            <p className="text-gray-600 text-center mb-4">
               This action cannot be undone. All your data, kid profiles, and approved content will be permanently deleted.
             </p>
+            <p className="text-sm text-gray-500 text-center mb-4">
+              Type <span className="font-mono font-bold text-red-600">DELETE</span> to confirm:
+            </p>
+            <input
+              type="text"
+              value={deleteConfirmText}
+              onChange={(e) => {
+                setDeleteConfirmText(e.target.value);
+                setDeleteError('');
+              }}
+              placeholder="Type DELETE"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg mb-4 text-center font-mono tracking-wider focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+              disabled={deleteLoading}
+            />
+            {deleteError && (
+              <p className="text-sm text-red-600 text-center mb-4">{deleteError}</p>
+            )}
             <div className="flex gap-3">
               <button
-                onClick={() => setShowDeleteConfirm(false)}
-                className="flex-1 px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition"
+                onClick={() => {
+                  setShowDeleteConfirm(false);
+                  setDeleteConfirmText('');
+                  setDeleteError('');
+                }}
+                disabled={deleteLoading}
+                className="flex-1 px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
-                onClick={() => {
-                  alert('Account deletion coming soon. Please contact jeremiah@getsafetube.com');
-                  setShowDeleteConfirm(false);
+                onClick={async () => {
+                  if (deleteConfirmText !== 'DELETE') {
+                    setDeleteError('Please type DELETE to confirm');
+                    return;
+                  }
+                  setDeleteLoading(true);
+                  setDeleteError('');
+                  try {
+                    await deleteOwnAccount();
+                    // Deletion successful, log out and redirect
+                    onLogout();
+                  } catch (error) {
+                    console.error('Failed to delete account:', error);
+                    setDeleteError(error.message || 'Failed to delete account. Please try again.');
+                    setDeleteLoading(false);
+                  }
                 }}
-                className="flex-1 px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition"
+                disabled={deleteLoading || deleteConfirmText !== 'DELETE'}
+                className="flex-1 px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Delete Account
+                {deleteLoading ? 'Deleting...' : 'Delete Account'}
               </button>
             </div>
           </div>
@@ -1027,8 +1069,15 @@ function SubscriptionCard({ userData }) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  // Cancellation reason modal state
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancelOtherReason, setCancelOtherReason] = useState('');
+  const [cancelLoading, setCancelLoading] = useState(false);
+
   const createCheckoutSession = useAction(api.stripeActions.createCheckoutSession);
   const createPortalSession = useAction(api.stripeActions.createPortalSession);
+  const sendCancellationReason = useAction(api.emails.sendCancellationReasonEmail);
 
   const status = userData?.subscriptionStatus || 'trial';
   const isTrialExpired = status === 'trial' && userData?.trialEndsAt && Date.now() > userData.trialEndsAt;
@@ -1081,6 +1130,39 @@ function SubscriptionCard({ userData }) {
       setError('Failed to open billing portal. Please try again.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Handle cancellation with reason collection
+  const handleCancelWithReason = async () => {
+    if (!cancelReason) return;
+
+    setCancelLoading(true);
+    try {
+      // Send cancellation reason email to admin
+      await sendCancellationReason({
+        userEmail: userData?.email || '',
+        userName: userData?.name || '',
+        reason: cancelReason,
+        otherReason: cancelReason === 'Other' ? cancelOtherReason : undefined,
+      });
+
+      // Close modal and reset state
+      setShowCancelModal(false);
+      setCancelReason('');
+      setCancelOtherReason('');
+
+      // Redirect to Stripe portal for actual cancellation
+      const result = await createPortalSession({
+        stripeCustomerId: userData.stripeCustomerId,
+      });
+      if (result.url) {
+        window.location.href = result.url;
+      }
+    } catch (err) {
+      console.error('Failed to process cancellation:', err);
+      setError('Failed to process. Please try again.');
+      setCancelLoading(false);
     }
   };
 
@@ -1166,34 +1248,139 @@ function SubscriptionCard({ userData }) {
         {hasActiveSubscription && (
           <div className="space-y-2">
             {userData?.stripeCustomerId ? (
-              <button
-                onClick={handleManageSubscription}
-                disabled={isLoading}
-                className="w-full flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-3 rounded-xl font-medium transition disabled:opacity-50"
-              >
-                {isLoading ? (
-                  <>
-                    <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Loading...
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                    Manage Subscription
-                  </>
-                )}
-              </button>
+              <>
+                <button
+                  onClick={handleManageSubscription}
+                  disabled={isLoading}
+                  className="w-full flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-3 rounded-xl font-medium transition disabled:opacity-50"
+                >
+                  {isLoading ? (
+                    <>
+                      <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Loading...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                      Manage Subscription
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={() => setShowCancelModal(true)}
+                  className="w-full text-sm text-gray-500 hover:text-red-600 py-2 transition"
+                >
+                  Cancel Subscription
+                </button>
+              </>
             ) : (
               <p className="text-center text-sm text-gray-500">
                 To manage or cancel, contact <a href="mailto:jeremiah@getsafetube.com" className="text-red-600 hover:underline">jeremiah@getsafetube.com</a>
               </p>
             )}
+          </div>
+        )}
+
+        {/* Cancellation Reason Modal */}
+        {showCancelModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
+                  <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">Before you go...</h3>
+                  <p className="text-sm text-gray-600">We'd love to know why</p>
+                </div>
+              </div>
+
+              <p className="text-gray-700 mb-4">
+                Your feedback helps us improve SafeTube:
+              </p>
+
+              <div className="space-y-2 mb-4">
+                {[
+                  "Too expensive",
+                  "Not using it enough",
+                  "Missing features I need",
+                  "Found a better alternative",
+                  "Kids lost interest",
+                  "Technical issues",
+                  "Other"
+                ].map((reason) => (
+                  <label
+                    key={reason}
+                    className={`flex items-center p-3 border rounded-lg cursor-pointer transition ${
+                      cancelReason === reason
+                        ? 'border-red-600 bg-red-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="cancelReason"
+                      value={reason}
+                      checked={cancelReason === reason}
+                      onChange={(e) => setCancelReason(e.target.value)}
+                      className="w-4 h-4 text-red-600 focus:ring-red-500"
+                    />
+                    <span className="ml-3 text-gray-700">{reason}</span>
+                  </label>
+                ))}
+              </div>
+
+              {cancelReason === 'Other' && (
+                <div className="mb-4">
+                  <textarea
+                    value={cancelOtherReason}
+                    onChange={(e) => setCancelOtherReason(e.target.value)}
+                    placeholder="Please tell us more..."
+                    rows={3}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                  />
+                </div>
+              )}
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowCancelModal(false);
+                    setCancelReason('');
+                    setCancelOtherReason('');
+                  }}
+                  disabled={cancelLoading}
+                  className="flex-1 px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-medium transition disabled:opacity-50"
+                >
+                  Never mind
+                </button>
+                <button
+                  onClick={handleCancelWithReason}
+                  disabled={cancelLoading || !cancelReason}
+                  className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {cancelLoading ? (
+                    <>
+                      <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Processing...
+                    </>
+                  ) : (
+                    'Continue to Cancel'
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
