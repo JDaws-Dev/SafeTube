@@ -95,81 +95,121 @@ export default function LandingPage() {
       </header>
 
       {/* Hero - Red/orange gradient matching OG image */}
-      <section className="py-10 sm:py-16 bg-gradient-to-br from-red-600 to-orange-500">
+      <section className="py-10 sm:py-16 lg:py-20 bg-gradient-to-br from-red-600 to-orange-500">
         <div className="container mx-auto px-4">
-          <div className="max-w-3xl mx-auto text-center">
-            {/* Badge */}
-            <div className="inline-flex items-center gap-2 bg-white/20 text-white px-4 py-2 rounded-full text-sm font-semibold mb-6 border border-white/30">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-              </svg>
-              YouTube Parental Controls
-            </div>
-
-            {/* Headline */}
-            <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-white mb-6 leading-tight">
-              The YouTube Parental Dashboard <br className="hidden sm:block" />
-              <span className="text-white underline decoration-white/50">That Actually Works</span>
-            </h1>
-
-            {/* Subhead */}
-            <p className="text-lg sm:text-xl md:text-2xl text-white/90 mb-6 sm:mb-8 max-w-2xl mx-auto px-2">
-              You get a parent dashboard. Your kids get a safe YouTube player.
-              You approve channels and videos, they can only watch what you've approved.
-              No algorithm, no recommendations, no rabbit holes.
-            </p>
-
-            {/* Power benefit statement */}
-            <div className="flex flex-col sm:flex-row flex-wrap justify-center gap-2 sm:gap-x-6 text-xs sm:text-sm text-white/90 mb-6">
-              <span className="flex items-center justify-center gap-1">
-                <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+          <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-16 max-w-7xl mx-auto">
+            {/* Left side - Text content */}
+            <div className="flex-1 text-center lg:text-left">
+              {/* Badge */}
+              <div className="inline-flex items-center gap-2 bg-white/20 text-white px-4 py-2 rounded-full text-sm font-semibold mb-6 border border-white/30">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                 </svg>
-                They watch ONLY approved content
-              </span>
-              <span className="flex items-center justify-center gap-1">
-                <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                YouTube Parental Controls
+              </div>
+
+              {/* Headline */}
+              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6 leading-tight">
+                The YouTube Parental Dashboard{" "}
+                <span className="text-white underline decoration-white/50">That Actually Works</span>
+              </h1>
+
+              {/* Subhead */}
+              <p className="text-lg sm:text-xl text-white/90 mb-6 max-w-xl mx-auto lg:mx-0">
+                You get a parent dashboard. Your kids get a safe YouTube player.
+                You approve channels and videos, they can only watch what you've approved.
+                No algorithm, no recommendations, no rabbit holes.
+              </p>
+
+              {/* Power benefit statement */}
+              <div className="flex flex-col sm:flex-row flex-wrap justify-center lg:justify-start gap-2 sm:gap-x-6 text-xs sm:text-sm text-white/90 mb-6">
+                <span className="flex items-center justify-center lg:justify-start gap-1">
+                  <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                  They watch ONLY approved content
+                </span>
+                <span className="flex items-center justify-center lg:justify-start gap-1">
+                  <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                  You see what they search for
+                </span>
+                <span className="flex items-center justify-center lg:justify-start gap-1">
+                  <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                  No algorithm recommendations
+                </span>
+              </div>
+
+              {/* CTA */}
+              <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 mb-4">
+                <Link
+                  to="/signup"
+                  className="w-full sm:w-auto bg-white hover:bg-gray-100 text-red-600 px-8 py-4 rounded-xl font-bold text-lg transition shadow-lg"
+                >
+                  Get 7 Days Free — No Credit Card
+                </Link>
+              </div>
+
+              {/* Micro-copy under CTA */}
+              <p className="text-white/70 text-sm mb-6">Takes 5 minutes to set up. Cancel anytime.</p>
+
+              {/* Trust line */}
+              <div className="flex flex-wrap items-center justify-center lg:justify-start gap-2 text-sm text-white/80 mb-4">
+                <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                 </svg>
-                You see what they search for
-              </span>
-              <span className="flex items-center justify-center gap-1">
-                <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                </svg>
-                No algorithm recommendations
-              </span>
+                <span>COPPA Compliant</span>
+                <span className="text-white/50">•</span>
+                <span>No Data Selling</span>
+                <span className="text-white/50">•</span>
+                <span>Cancel Anytime</span>
+              </div>
+
+              {/* Kid access URL */}
+              <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-lg">
+                <span className="text-white/80">Kids access at</span>
+                <span className="text-white font-mono font-bold">getsafetube.com/play</span>
+              </div>
             </div>
 
-            {/* CTA */}
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-4">
-              <Link
-                to="/signup"
-                className="w-full sm:w-auto bg-white hover:bg-gray-100 text-red-600 px-8 py-4 rounded-xl font-bold text-lg transition shadow-lg"
-              >
-                Get 7 Days Free — No Credit Card
-              </Link>
-            </div>
+            {/* Right side - Hero Photo */}
+            <div className="flex-1 relative w-full flex items-center justify-center lg:justify-end">
+              <div className="relative max-w-md lg:max-w-lg w-full">
+                <div
+                  className="relative aspect-[4/5] overflow-hidden shadow-2xl"
+                  style={{ borderRadius: '0 3rem 3rem 3rem' }}
+                >
+                  <img
+                    src="https://images.pexels.com/photos/4473777/pexels-photo-4473777.jpeg?auto=compress&cs=tinysrgb&w=600&h=750&fit=crop"
+                    alt="Family watching videos together on tablet"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
 
-            {/* Micro-copy under CTA */}
-            <p className="text-white/70 text-sm mb-6">Takes 5 minutes to set up. Cancel anytime.</p>
+                {/* Floating Badge - Left */}
+                <div className="absolute -left-4 top-1/4 bg-white rounded-xl px-3 py-2 shadow-lg flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center">
+                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <span className="text-sm font-medium text-gray-700">YouTube</span>
+                </div>
 
-            {/* Trust line */}
-            <div className="flex flex-wrap items-center justify-center gap-2 text-sm text-white/80 mb-4">
-              <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-              </svg>
-              <span>COPPA Compliant</span>
-              <span className="text-white/50">•</span>
-              <span>No Data Selling</span>
-              <span className="text-white/50">•</span>
-              <span>Cancel Anytime</span>
-            </div>
-
-            {/* Kid access URL */}
-            <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-lg">
-              <span className="text-white/80">Kids access at</span>
-              <span className="text-white font-mono font-bold">getsafetube.com/play</span>
+                {/* Floating Badge - Right */}
+                <div className="absolute -right-4 bottom-1/3 bg-white rounded-xl px-3 py-2 shadow-lg flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center">
+                    <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <span className="text-sm font-medium text-gray-700">Approved</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -931,7 +971,15 @@ export default function LandingPage() {
               </div>
             </div>
 
-            <p className="text-center text-gray-500 text-sm mt-6">
+            {/* Money-back guarantee */}
+            <div className="mt-6 bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-3 rounded-xl flex items-center justify-center gap-2">
+              <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+              </svg>
+              <span className="text-sm font-medium">30-day money-back guarantee — no questions asked</span>
+            </div>
+
+            <p className="text-center text-gray-500 text-sm mt-4">
               Tried YouTube Kids and it didn't work? SafeTube is the solution that actually gives you control.
             </p>
           </div>
@@ -993,16 +1041,36 @@ export default function LandingPage() {
       {/* Footer */}
       <footer className="bg-gray-950 text-gray-400 py-8">
         <div className="container mx-auto px-4">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <p className="text-sm">&copy; {new Date().getFullYear()} SafeTube. All rights reserved.</p>
+          <div className="flex flex-col gap-6">
+            {/* Safe Family Links */}
+            <div className="flex flex-wrap justify-center gap-4 sm:gap-6 text-sm">
+              <a href="https://getsafetunes.com" target="_blank" rel="noopener noreferrer" className="font-medium text-white/70 hover:text-white transition">
+                SafeTunes
+              </a>
+              <span className="text-white/30 hidden sm:inline">|</span>
+              <a href="https://getsafereads.com" target="_blank" rel="noopener noreferrer" className="font-medium text-white/70 hover:text-white transition">
+                SafeReads
+              </a>
+              <span className="text-white/30 hidden sm:inline">|</span>
+              <a href="https://getsafecontent.vercel.app" target="_blank" rel="noopener noreferrer" className="font-medium text-white/70 hover:text-white transition">
+                Get All 3 Apps
+              </a>
             </div>
-            <div className="flex gap-6 text-sm">
+            {/* Legal Links */}
+            <div className="flex flex-wrap justify-center gap-4 sm:gap-6 text-sm">
               <Link to="/privacy" className="hover:text-white transition">Privacy</Link>
+              <span className="text-white/30 hidden sm:inline">|</span>
               <Link to="/terms" className="hover:text-white transition">Terms</Link>
+              <span className="text-white/30 hidden sm:inline">|</span>
               <Link to="/support" className="hover:text-white transition">Support</Link>
+              <span className="text-white/30 hidden sm:inline">|</span>
               <Link to="/login" className="hover:text-white transition">Parent Login</Link>
+              <span className="text-white/30 hidden sm:inline">|</span>
               <Link to="/play" className="hover:text-white transition">Kid Login</Link>
+            </div>
+            {/* Copyright */}
+            <div className="text-center">
+              <p className="text-sm text-white/40">&copy; {new Date().getFullYear()} SafeTube. All rights reserved.</p>
             </div>
           </div>
         </div>
