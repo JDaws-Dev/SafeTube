@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation } from 'convex/react';
+import { useConvexAuth } from 'convex/react';
+import { useAuthActions } from '@convex-dev/auth/react';
 import { api } from '../../convex/_generated/api';
-import { signOut, useSession } from '../lib/auth-client';
 
 // Components
 import YouTubeSearch from '../components/admin/YouTubeSearch';
@@ -13,11 +14,12 @@ import GettingStarted from '../components/admin/GettingStarted';
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
-  const { data: session, isPending: sessionPending } = useSession();
+  const { isAuthenticated, isLoading: sessionPending } = useConvexAuth();
+  const { signOut } = useAuthActions();
   const [copiedCode, setCopiedCode] = useState(false);
 
-  // Sync user to our database on login
-  const syncUser = useMutation(api.users.syncUser);
+  // Get current user from Convex Auth
+  const currentUser = useQuery(api.userSync.getCurrentUser);
   const setTimezone = useMutation(api.users.setTimezone);
 
   const copyFamilyCode = async () => {
@@ -28,11 +30,8 @@ export default function AdminDashboard() {
     }
   };
 
-  // Get user data by email from session (not from auth component)
-  const userData = useQuery(
-    api.users.getUserByEmail,
-    session?.user?.email ? { email: session.user.email } : 'skip'
-  );
+  // Use the current user from Convex Auth as userData
+  const userData = currentUser;
 
   // Active tab - consolidated from 8 to 4 tabs
   const [activeTab, setActiveTab] = useState('home');
@@ -62,15 +61,7 @@ export default function AdminDashboard() {
 
   const pendingRequestsCount = (pendingVideoRequests?.length || 0) + (pendingChannelRequests?.length || 0);
 
-  // Sync user when session is available but user doesn't exist yet
-  useEffect(() => {
-    if (session?.user?.email && userData === null) {
-      syncUser({
-        email: session.user.email,
-        name: session.user.name,
-      });
-    }
-  }, [session, userData, syncUser]);
+  // Note: User syncing is now handled by afterUserCreatedOrUpdated callback in auth.ts
 
   // Auto-detect and save user's timezone
   useEffect(() => {
@@ -91,15 +82,15 @@ export default function AdminDashboard() {
 
   const handleLogout = async () => {
     await signOut();
-    navigate('/');
+    navigate('/login');
   };
 
-  // Redirect to login if no session after loading
+  // Redirect to login if not authenticated after loading
   useEffect(() => {
-    if (!sessionPending && !session) {
+    if (!sessionPending && !isAuthenticated) {
       navigate('/login');
     }
-  }, [sessionPending, session, navigate]);
+  }, [sessionPending, isAuthenticated, navigate]);
 
   if (sessionPending) {
     return (
@@ -117,7 +108,7 @@ export default function AdminDashboard() {
     );
   }
 
-  if (!session) {
+  if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-red-50 via-white to-orange-50 flex items-center justify-center">
         <div className="text-center">

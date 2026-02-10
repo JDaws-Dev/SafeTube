@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { useSession } from './lib/auth-client';
+import { useConvexAuth } from 'convex/react';
 
 // Pages
 import LandingPage from './pages/LandingPage';
@@ -31,13 +31,13 @@ function LoadingScreen() {
 
 // Protected route for parents
 function ProtectedRoute({ children }) {
-  const { data: session, isPending } = useSession();
+  const { isAuthenticated, isLoading } = useConvexAuth();
 
-  if (isPending) {
+  if (isLoading) {
     return <LoadingScreen />;
   }
 
-  if (!session) {
+  if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
 

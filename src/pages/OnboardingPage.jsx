@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useSession } from '../lib/auth-client';
-import { useQuery, useMutation } from 'convex/react';
+import { useConvexAuth, useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 
 const COLORS = [
@@ -16,7 +15,7 @@ const COLORS = [
 
 export default function OnboardingPage() {
   const navigate = useNavigate();
-  const { data: session, isPending: sessionLoading } = useSession();
+  const { isAuthenticated, isLoading: sessionLoading } = useConvexAuth();
 
   const [step, setStep] = useState(1); // 1 = welcome, 2 = create kids
   const [kids, setKids] = useState([{ name: '', color: 'blue' }]);
@@ -24,24 +23,27 @@ export default function OnboardingPage() {
   const [showFamilyCodeModal, setShowFamilyCodeModal] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
 
-  // Get user data
-  const onboardingStatus = useQuery(
-    api.users.checkOnboardingStatus,
-    session?.user?.email ? { email: session.user.email } : 'skip'
-  );
+  // Get current user from Convex Auth
+  const currentUser = useQuery(api.userSync.getCurrentUser);
+
+  // Build onboarding status from currentUser
+  const onboardingStatus = currentUser !== undefined ? {
+    needsOnboarding: currentUser?.onboardingCompleted === false,
+    user: currentUser,
+  } : undefined;
 
   const createKidProfile = useMutation(api.kidProfiles.createKidProfile);
   const completeOnboarding = useMutation(api.users.completeOnboarding);
 
   // Redirect if not logged in or already completed onboarding
   useEffect(() => {
-    if (!sessionLoading && !session) {
+    if (!sessionLoading && !isAuthenticated) {
       navigate('/login');
     }
     if (onboardingStatus && !onboardingStatus.needsOnboarding && onboardingStatus.user) {
       navigate('/admin');
     }
-  }, [session, sessionLoading, onboardingStatus, navigate]);
+  }, [isAuthenticated, sessionLoading, onboardingStatus, navigate]);
 
   const user = onboardingStatus?.user;
 
