@@ -25,6 +25,19 @@ export default function SignupPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [showPromoCode, setShowPromoCode] = useState(false);
+  const [passwordMismatch, setPasswordMismatch] = useState(false);
+
+  // Handle password field changes with real-time validation
+  const handlePasswordChange = (field, value) => {
+    const newFormData = { ...formData, [field]: value };
+    setFormData(newFormData);
+    // Only show mismatch if confirm field has content
+    if (newFormData.confirmPassword.length > 0) {
+      setPasswordMismatch(newFormData.password !== newFormData.confirmPassword);
+    } else {
+      setPasswordMismatch(false);
+    }
+  };
 
   // Check if promo code is valid for lifetime access
   const lifetimeCodes = ['DAWSFRIEND', 'DEWITT'];
@@ -213,8 +226,9 @@ export default function SignupPage() {
               <input
                 id="password"
                 type="password"
+                autoComplete="new-password"
                 value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                onChange={(e) => handlePasswordChange('password', e.target.value)}
                 className="w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
                 placeholder="At least 8 characters"
                 required
@@ -229,12 +243,18 @@ export default function SignupPage() {
               <input
                 id="confirmPassword"
                 type="password"
+                autoComplete="new-password"
                 value={formData.confirmPassword}
-                onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                className="w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                onChange={(e) => handlePasswordChange('confirmPassword', e.target.value)}
+                className={`w-full bg-gray-50 border rounded-lg px-4 py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent ${
+                  passwordMismatch ? 'border-red-300 bg-red-50' : 'border-gray-200'
+                }`}
                 placeholder="Confirm your password"
                 required
               />
+              {passwordMismatch && (
+                <p className="mt-1 text-sm text-red-600">Passwords do not match</p>
+              )}
             </div>
 
             {/* Promo Code Section */}
