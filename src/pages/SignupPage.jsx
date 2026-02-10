@@ -4,6 +4,7 @@ import { useMutation, useQuery } from 'convex/react';
 import { useConvexAuth } from 'convex/react';
 import { useAuthActions } from '@convex-dev/auth/react';
 import { api } from '../../convex/_generated/api';
+import PasswordStrengthIndicator from '../components/PasswordStrengthIndicator';
 
 export default function SignupPage() {
   const navigate = useNavigate();
@@ -262,6 +263,7 @@ export default function SignupPage() {
                 required
                 minLength={8}
               />
+              <PasswordStrengthIndicator password={formData.password} />
             </div>
 
             <div>
