@@ -77,6 +77,14 @@ export default function Settings({ userData, onLogout }) {
   const [deleteError, setDeleteError] = useState('');
   const deleteOwnAccount = useMutation(api.admin.deleteOwnAccount);
 
+  // Account editing state
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editNameLoading, setEditNameLoading] = useState(false);
+  const [editNameError, setEditNameError] = useState('');
+  const [editNameSuccess, setEditNameSuccess] = useState('');
+  const updateUser = useMutation(api.users.updateUser);
+
   // Get kid profiles
   const kidProfiles = useQuery(
     api.kidProfiles.getKidProfiles,
@@ -108,6 +116,43 @@ export default function Settings({ userData, onLogout }) {
       console.error('Failed to delete profile:', err);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Start editing name
+  const startEditingName = () => {
+    setEditName(userData?.name || '');
+    setIsEditingName(true);
+    setEditNameError('');
+    setEditNameSuccess('');
+  };
+
+  // Save name changes
+  const handleSaveName = async (e) => {
+    e.preventDefault();
+    setEditNameError('');
+    setEditNameSuccess('');
+
+    if (!editName.trim()) {
+      setEditNameError('Name is required');
+      return;
+    }
+
+    setEditNameLoading(true);
+
+    try {
+      await updateUser({
+        userId: userData._id,
+        name: editName.trim(),
+      });
+
+      setEditNameSuccess('Name updated successfully!');
+      setIsEditingName(false);
+    } catch (error) {
+      console.error('Failed to update name:', error);
+      setEditNameError(error.message || 'Failed to update name. Please try again.');
+    } finally {
+      setEditNameLoading(false);
     }
   };
 
@@ -238,41 +283,114 @@ export default function Settings({ userData, onLogout }) {
         <div className="space-y-6">
           {/* Account Information */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-red-500 to-orange-500">
+            <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-red-500 to-orange-500 flex items-center justify-between">
               <h2 className="text-lg font-semibold text-white flex items-center gap-2">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
                 Account Information
               </h2>
+              {!isEditingName && (
+                <button
+                  onClick={startEditingName}
+                  className="px-3 py-1.5 text-sm font-medium text-white/90 hover:text-white bg-white/20 hover:bg-white/30 rounded-lg transition"
+                >
+                  Edit
+                </button>
+              )}
             </div>
             <div className="p-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Name</label>
-                  <p className="text-lg font-medium text-gray-900">{userData?.name || 'Not set'}</p>
+              {/* Success message */}
+              {editNameSuccess && !isEditingName && (
+                <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
+                  <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                  <span className="text-sm text-green-700 font-medium">{editNameSuccess}</span>
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Email</label>
-                  <p className="text-lg font-medium text-gray-900">{userData?.email || 'Not set'}</p>
+              )}
+
+              {!isEditingName ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Name</label>
+                    <p className="text-lg font-medium text-gray-900">{userData?.name || 'Not set'}</p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Email</label>
+                    <p className="text-lg font-medium text-gray-900">{userData?.email || 'Not set'}</p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Family Code</label>
+                    <p className="text-2xl font-mono font-bold text-red-600 tracking-wider">{userData?.familyCode || 'Not set'}</p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Member Since</label>
+                    <p className="text-lg text-gray-900">
+                      {userData?.createdAt
+                        ? new Date(userData.createdAt).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                          })
+                        : 'Unknown'}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Family Code</label>
-                  <p className="text-2xl font-mono font-bold text-red-600 tracking-wider">{userData?.familyCode || 'Not set'}</p>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Member Since</label>
-                  <p className="text-lg text-gray-900">
-                    {userData?.createdAt
-                      ? new Date(userData.createdAt).toLocaleDateString('en-US', {
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric'
-                        })
-                      : 'Unknown'}
-                  </p>
-                </div>
-              </div>
+              ) : (
+                <form onSubmit={handleSaveName} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                    <input
+                      type="text"
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                      placeholder="Your name"
+                      autoComplete="name"
+                      autoFocus
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                    <div className="w-full px-4 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-600">
+                      {userData?.email || 'Not set'}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">Email cannot be changed</p>
+                  </div>
+
+                  {editNameError && (
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
+                      <svg className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                      </svg>
+                      <span className="text-sm text-red-700">{editNameError}</span>
+                    </div>
+                  )}
+
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      type="submit"
+                      disabled={editNameLoading}
+                      className="px-6 py-2 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white rounded-lg font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {editNameLoading ? 'Saving...' : 'Save Changes'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsEditingName(false);
+                        setEditNameError('');
+                      }}
+                      disabled={editNameLoading}
+                      className="px-6 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              )}
             </div>
           </div>
 

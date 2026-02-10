@@ -19,7 +19,7 @@ export const getUserByEmail = query({
   handler: async (ctx, args) => {
     const user = await ctx.db
       .query("users")
-      .withIndex("by_email", (q) => q.eq("email", args.email))
+      .withIndex("email", (q) => q.eq("email", args.email))
       .first();
 
     if (!user) return null;
@@ -52,7 +52,7 @@ export const syncUser = mutation({
     // Check if user exists
     const existing = await ctx.db
       .query("users")
-      .withIndex("by_email", (q) => q.eq("email", args.email))
+      .withIndex("email", (q) => q.eq("email", args.email))
       .first();
 
     if (existing) {
@@ -164,7 +164,7 @@ export const checkOnboardingStatus = query({
   handler: async (ctx, args) => {
     const user = await ctx.db
       .query("users")
-      .withIndex("by_email", (q) => q.eq("email", args.email))
+      .withIndex("email", (q) => q.eq("email", args.email))
       .first();
 
     if (!user) return { needsOnboarding: false, user: null };
@@ -212,7 +212,7 @@ export const grantLifetime = mutation({
   handler: async (ctx, args) => {
     const user = await ctx.db
       .query("users")
-      .withIndex("by_email", (q) => q.eq("email", args.email))
+      .withIndex("email", (q) => q.eq("email", args.email))
       .first();
 
     if (!user) {
@@ -267,7 +267,7 @@ export const updateSubscriptionStatus = mutation({
   handler: async (ctx, args) => {
     const user = await ctx.db
       .query("users")
-      .withIndex("by_email", (q) => q.eq("email", args.email))
+      .withIndex("email", (q) => q.eq("email", args.email))
       .first();
 
     if (!user) {
@@ -279,6 +279,26 @@ export const updateSubscriptionStatus = mutation({
       subscriptionId: args.subscriptionId,
       stripeCustomerId: args.stripeCustomerId,
     });
+  },
+});
+
+// Update user profile (name)
+export const updateUser = mutation({
+  args: {
+    userId: v.id("users"),
+    name: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.db.get(args.userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    await ctx.db.patch(args.userId, {
+      name: args.name.trim(),
+    });
+
+    return { success: true };
   },
 });
 
@@ -324,7 +344,7 @@ export const setSubscriptionStatusByEmailInternal = internalMutation({
   handler: async (ctx, args) => {
     const user = await ctx.db
       .query("users")
-      .withIndex("by_email", (q) => q.eq("email", args.email))
+      .withIndex("email", (q) => q.eq("email", args.email))
       .first();
 
     if (!user) {
