@@ -5,12 +5,14 @@ import { useConvexAuth } from 'convex/react';
 import { useAuthActions } from '@convex-dev/auth/react';
 import { api } from '../../convex/_generated/api';
 import PasswordStrengthIndicator from '../components/PasswordStrengthIndicator';
+import { useHaptic } from '../hooks/useHaptic';
 
 export default function SignupPage() {
   const navigate = useNavigate();
   const { isAuthenticated, isLoading: isPending } = useConvexAuth();
   const { signIn } = useAuthActions();
   const applyCouponCode = useMutation(api.userSync.applyCouponCode);
+  const haptic = useHaptic();
 
   // Get current user to check if onboarding is completed
   const currentUser = useQuery(api.userSync.getCurrentUser);
@@ -68,11 +70,13 @@ export default function SignupPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    haptic.light(); // Light tap on submit
     setError('');
 
     // Validate passwords match
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
+      haptic.error();
       confirmPasswordInputRef.current?.focus();
       errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
@@ -81,6 +85,7 @@ export default function SignupPage() {
     // Validate password strength
     if (formData.password.length < 8) {
       setError('Password must be at least 8 characters');
+      haptic.error();
       passwordInputRef.current?.focus();
       errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
@@ -108,10 +113,12 @@ export default function SignupPage() {
         }
       }
 
+      haptic.success(); // Success feedback
       // Navigate to onboarding
       navigate('/onboarding');
     } catch (err) {
       console.error('Signup error:', err);
+      haptic.error(); // Error feedback
       if (err.message?.includes('already exists') || err.message?.includes('Account already exists')) {
         setError('This email is already registered. Please log in instead.');
         emailInputRef.current?.focus();
@@ -124,6 +131,7 @@ export default function SignupPage() {
   };
 
   const handleGoogleSignUp = async () => {
+    haptic.light(); // Light tap on Google button
     setGoogleLoading(true);
     setError('');
 

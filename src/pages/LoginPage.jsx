@@ -1,14 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useQuery } from 'convex/react';
 import { useConvexAuth } from 'convex/react';
 import { useAuthActions } from '@convex-dev/auth/react';
 import { api } from '../../convex/_generated/api';
+import { useHaptic } from '../hooks/useHaptic';
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const { isAuthenticated, isLoading: isPending } = useConvexAuth();
   const { signIn } = useAuthActions();
+  const haptic = useHaptic();
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState('');
@@ -33,6 +35,11 @@ export default function LoginPage() {
     password: '',
   });
 
+  // Refs for accessibility - focus management on errors
+  const emailInputRef = useRef(null);
+  const passwordInputRef = useRef(null);
+  const errorRef = useRef(null);
+
   // Load remembered email on mount
   useEffect(() => {
     const rememberedEmail = localStorage.getItem('safetube_remembered_email');
@@ -46,6 +53,7 @@ export default function LoginPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    haptic.light(); // Light tap on submit
     setError('');
     setLoading(true);
 
@@ -60,14 +68,17 @@ export default function LoginPage() {
       // Always save email for convenience
       localStorage.setItem('safetube_remembered_email', formData.email);
 
+      haptic.success(); // Success feedback
       // Login succeeded - navigate to admin (or onboarding will redirect if needed)
       navigate('/admin');
     } catch (err) {
       console.error('[LoginPage] Login error:', err);
+      haptic.error(); // Error feedback
       // Provide user-friendly error messages
       const errorMessage = err?.message || '';
       if (errorMessage.includes('Invalid') || errorMessage.includes('credentials') || errorMessage.includes('password') || errorMessage.includes('Could not verify')) {
         setError('Invalid email or password. Please try again.');
+        emailInputRef.current?.focus();
       } else if (errorMessage.includes('network') || errorMessage.includes('fetch') || errorMessage.includes('Failed to fetch')) {
         setError('Network error. Please check your connection and try again.');
       } else if (errorMessage.includes('timeout')) {
@@ -75,11 +86,13 @@ export default function LoginPage() {
       } else {
         setError('Login failed. Please try again.');
       }
+      errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       setLoading(false);
     }
   };
 
   const handleGoogleSignIn = async () => {
+    haptic.light(); // Light tap on Google button
     setGoogleLoading(true);
     setError('');
 
@@ -87,6 +100,7 @@ export default function LoginPage() {
       await signIn('google', { redirectTo: '/admin' });
     } catch (err) {
       console.error('[LoginPage] Google login error:', err);
+      haptic.error();
       setError('Google sign-in failed. Please try again.');
       setGoogleLoading(false);
     }
@@ -109,12 +123,18 @@ export default function LoginPage() {
 
       {/* Login Form */}
       <main className="flex-1 flex items-center justify-center px-6 py-12">
-        <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
+        <div className="w-full max-w-md min-w-0 bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
           <h1 className="text-3xl font-bold text-gray-900 text-center mb-2">Welcome back</h1>
           <p className="text-gray-500 text-center mb-8">Sign in to continue to SafeTube</p>
 
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm mb-6">
+            <div
+              ref={errorRef}
+              role="alert"
+              aria-live="assertive"
+              id="form-error"
+              className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm mb-6"
+            >
               {error}
             </div>
           )}
@@ -124,7 +144,7 @@ export default function LoginPage() {
             type="button"
             onClick={handleGoogleSignIn}
             disabled={googleLoading || loading}
-            className="w-full flex items-center justify-center gap-3 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 py-3 rounded-lg font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed mb-4"
+            className="w-full min-h-[48px] flex items-center justify-center gap-3 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 py-3 rounded-lg font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed mb-4"
           >
             {googleLoading ? (
               <div className="w-5 h-5 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
@@ -148,17 +168,22 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4" aria-busy={loading}>
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
                 Email
               </label>
               <input
+                ref={emailInputRef}
                 id="email"
                 type="email"
+                inputMode="email"
+                autoComplete="email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                aria-invalid={error ? 'true' : undefined}
+                aria-describedby={error ? 'form-error' : undefined}
+                className="w-full min-h-[44px] bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
                 placeholder="you@example.com"
                 required
               />
@@ -177,11 +202,15 @@ export default function LoginPage() {
               </Link>
               </div>
               <input
+                ref={passwordInputRef}
                 id="password"
                 type="password"
+                autoComplete="current-password"
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                className="w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                aria-invalid={error ? 'true' : undefined}
+                aria-describedby={error ? 'form-error' : undefined}
+                className="w-full min-h-[44px] bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
                 placeholder="••••••••"
                 required
               />
@@ -190,7 +219,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading || googleLoading}
-              className="w-full bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed text-white py-3 rounded-lg font-semibold transition shadow-md"
+              className="w-full min-h-[48px] bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed text-white py-3 rounded-lg font-semibold transition shadow-md"
             >
               {loading ? 'Signing in...' : 'Sign In'}
             </button>
