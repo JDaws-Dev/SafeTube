@@ -1,29 +1,44 @@
 import { defineSchema, defineTable } from "convex/server";
+import { authTables } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 
 export default defineSchema({
-  // Users table (parents)
+  // Spread Convex Auth tables (authAccounts, authRefreshTokens, authSessions, authVerificationCodes, authVerifiers, etc.)
+  ...authTables,
+
+  // Override the users table with Convex Auth fields + SafeTube custom fields
   users: defineTable({
-    email: v.string(),
+    // Convex Auth required fields
     name: v.optional(v.string()),
-    familyCode: v.string(), // Unique code for kids to access
+    image: v.optional(v.string()),
+    email: v.optional(v.string()),
+    emailVerificationTime: v.optional(v.float64()),
+    phone: v.optional(v.string()),
+    phoneVerificationTime: v.optional(v.float64()),
+    isAnonymous: v.optional(v.boolean()),
+
+    // SafeTube custom fields
+    familyCode: v.optional(v.string()), // Unique code for kids to access
     parentPin: v.optional(v.string()), // PIN to protect parent mode (hashed)
-    passwordHash: v.optional(v.string()), // Hashed password for Better Auth
     couponCode: v.optional(v.string()), // Promo code used at signup
-    appleMusicAuthorized: v.optional(v.boolean()), // Apple Music authorization status
-    appleMusicAuthDate: v.optional(v.number()), // When Apple Music was authorized
+    appleMusicAuthorized: v.optional(v.boolean()), // Apple Music authorization status (legacy)
+    appleMusicAuthDate: v.optional(v.number()), // When Apple Music was authorized (legacy)
     globalHideArtwork: v.optional(v.boolean()), // Global toggle to hide all album artwork
     timezone: v.optional(v.string()), // IANA timezone (e.g., "America/New_York")
     expoPushToken: v.optional(v.string()), // Expo push notification token
     onboardingCompleted: v.optional(v.boolean()), // Track if user finished onboarding
-    subscriptionStatus: v.optional(v.string()), // "trial", "active", "cancelled", "expired"
+    subscriptionStatus: v.optional(v.string()), // "trial", "active", "cancelled", "expired", "lifetime"
     stripeCustomerId: v.optional(v.string()), // Stripe customer ID
     subscriptionId: v.optional(v.string()), // Stripe subscription ID
     subscriptionEndsAt: v.optional(v.number()), // When subscription ends
     trialEndsAt: v.optional(v.number()), // When trial expires
-    createdAt: v.number(),
+    createdAt: v.optional(v.number()), // When user was created
+
+    // Legacy fields from old auth system
+    passwordHash: v.optional(v.string()), // Legacy - kept for backward compat
   })
-    .index("by_email", ["email"])
+    .index("email", ["email"]) // Required by Convex Auth
+    .index("phone", ["phone"]) // Required by Convex Auth
     .index("by_familyCode", ["familyCode"])
     .index("by_subscription", ["subscriptionId"]),
 

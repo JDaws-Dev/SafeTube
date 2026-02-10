@@ -1,52 +1,96 @@
-import { createClient, type GenericCtx } from "@convex-dev/better-auth";
-import { convex } from "@convex-dev/better-auth/plugins";
-import { components } from "./_generated/api";
+import { convexAuth, getAuthUserId } from "@convex-dev/auth/server";
+import { Password } from "@convex-dev/auth/providers/Password";
+import Google from "@auth/core/providers/google";
+import { ResendOTPPasswordReset } from "./ResendOTPPasswordReset";
 import { DataModel } from "./_generated/dataModel";
-import { query } from "./_generated/server";
-import { betterAuth } from "better-auth";
+import { MutationCtx } from "./_generated/server";
 
-// baseURL must be the Convex site URL where auth endpoints live
-const siteUrl = "https://rightful-rabbit-333.convex.site";
+// Helper function to generate a unique 6-character family code
+function generateFamilyCode(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // Removed ambiguous chars: 0, O, I, 1
+  let code = "";
+  for (let i = 0; i < 6; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
+}
 
-export const authComponent = createClient<DataModel>(components.betterAuth);
-
-export const createAuth = (
-  ctx: GenericCtx<DataModel>,
-  { optionsOnly } = { optionsOnly: false },
-) => {
-  return betterAuth({
-    logger: {
-      disabled: optionsOnly,
-    },
-    baseURL: siteUrl,
-    database: authComponent.adapter(ctx),
-    emailAndPassword: {
-      enabled: true,
-      requireEmailVerification: false,
-    },
-    // Set cookies for the frontend domain when proxied through Vercel
-    advanced: {
-      crossSubDomainCookies: {
-        enabled: true,
-        domain: "getsafetube.com", // Explicitly set cookie domain
+export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
+  providers: [
+    // Password authentication with email/password
+    Password({
+      // Enable password reset with OTP via Resend
+      reset: ResendOTPPasswordReset,
+      // Custom profile handler to extract name from signup form
+      profile(params) {
+        return {
+          email: params.email as string,
+          name: (params.name as string) || undefined,
+        };
       },
-    },
-    trustedOrigins: [
-      "http://localhost:5173",
-      "http://localhost:3000",
-      "https://getsafetube.com",
-      "https://www.getsafetube.com",
-      "https://safetube-family-planner.vercel.app",
-    ],
-    plugins: [
-      convex(),
-    ],
-  });
-};
+    }),
+    // Google OAuth
+    Google,
+  ],
+  callbacks: {
+    // Called after a user is created or updated
+    // Use this to initialize SafeTube-specific fields
+    async afterUserCreatedOrUpdated(ctx, args) {
+      const { userId, existingUserId } = args;
 
-export const getCurrentUser = query({
-  args: {},
-  handler: async (ctx) => {
-    return authComponent.getAuthUser(ctx);
+      // Only initialize on first signup, not on subsequent logins
+      if (existingUserId) {
+        return; // User already exists, nothing to initialize
+      }
+
+      // Get the user to check if they already have SafeTube fields set
+      const user = await ctx.db.get(userId);
+      if (!user) {
+        console.error(
+          "[afterUserCreatedOrUpdated] User not found after creation:",
+          userId
+        );
+        return;
+      }
+
+      // If user already has a familyCode, they were already initialized
+      if (user.familyCode) {
+        return;
+      }
+
+      // Generate a unique family code
+      let familyCode = generateFamilyCode();
+      let codeExists = true;
+
+      while (codeExists) {
+        const existingCode = await ctx.db
+          .query("users")
+          .withIndex("by_familyCode", (q) => q.eq("familyCode", familyCode))
+          .first();
+
+        if (!existingCode) {
+          codeExists = false;
+        } else {
+          familyCode = generateFamilyCode();
+        }
+      }
+
+      // Initialize SafeTube fields for new user
+      await ctx.db.patch(userId, {
+        familyCode,
+        createdAt: Date.now(),
+        subscriptionStatus: "trial", // All new users start with trial
+      });
+
+      console.log(
+        `[afterUserCreatedOrUpdated] Initialized SafeTube user: ${user.email} with familyCode: ${familyCode}`
+      );
+    },
   },
 });
+
+/**
+ * Helper to get the current authenticated user's ID
+ * Use this in queries/mutations to get the logged-in user
+ */
+export { getAuthUserId };
