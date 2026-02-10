@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery } from 'convex/react';
 import { useConvexAuth } from 'convex/react';
@@ -26,6 +26,13 @@ export default function SignupPage() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [showPromoCode, setShowPromoCode] = useState(false);
   const [passwordMismatch, setPasswordMismatch] = useState(false);
+
+  // Refs for accessibility - focus management on errors
+  const nameInputRef = useRef(null);
+  const emailInputRef = useRef(null);
+  const passwordInputRef = useRef(null);
+  const confirmPasswordInputRef = useRef(null);
+  const errorRef = useRef(null);
 
   // Handle password field changes with real-time validation
   const handlePasswordChange = (field, value) => {
@@ -65,12 +72,16 @@ export default function SignupPage() {
     // Validate passwords match
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
+      confirmPasswordInputRef.current?.focus();
+      errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
 
     // Validate password strength
     if (formData.password.length < 8) {
       setError('Password must be at least 8 characters');
+      passwordInputRef.current?.focus();
+      errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
 
@@ -102,9 +113,11 @@ export default function SignupPage() {
       console.error('Signup error:', err);
       if (err.message?.includes('already exists') || err.message?.includes('Account already exists')) {
         setError('This email is already registered. Please log in instead.');
+        emailInputRef.current?.focus();
       } else {
         setError('Unable to create account. Please try again.');
       }
+      errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       setIsLoading(false);
     }
   };
@@ -139,7 +152,7 @@ export default function SignupPage() {
 
       {/* Signup Form */}
       <main className="flex-1 flex items-center justify-center px-6 py-12">
-        <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
+        <div className="w-full max-w-md min-w-0 bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
           <h1 className="text-3xl font-bold text-gray-900 text-center mb-2">
             {isLifetimeCode ? 'Get Lifetime Access' : 'Start Your Free Trial'}
           </h1>
@@ -154,7 +167,13 @@ export default function SignupPage() {
           )}
 
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm mb-6">
+            <div
+              ref={errorRef}
+              role="alert"
+              aria-live="assertive"
+              id="form-error"
+              className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm mb-6"
+            >
               {error}
             </div>
           )}
@@ -164,7 +183,7 @@ export default function SignupPage() {
             type="button"
             onClick={handleGoogleSignUp}
             disabled={googleLoading || isLoading}
-            className="w-full flex items-center justify-center gap-3 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 py-3 rounded-lg font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed mb-4"
+            className="w-full min-h-[48px] flex items-center justify-center gap-3 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 py-3 rounded-lg font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed mb-4"
           >
             {googleLoading ? (
               <div className="w-5 h-5 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
@@ -188,17 +207,18 @@ export default function SignupPage() {
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4" aria-busy={isLoading}>
             <div>
               <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
                 Your Name
               </label>
               <input
+                ref={nameInputRef}
                 id="name"
                 type="text"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                className="w-full min-h-[44px] bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
                 placeholder="Parent Name"
                 required
               />
@@ -209,11 +229,16 @@ export default function SignupPage() {
                 Email
               </label>
               <input
+                ref={emailInputRef}
                 id="email"
                 type="email"
+                inputMode="email"
+                autoComplete="email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                aria-invalid={error.includes('email') || error.includes('registered') ? 'true' : undefined}
+                aria-describedby={error.includes('email') || error.includes('registered') ? 'form-error' : undefined}
+                className="w-full min-h-[44px] bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
                 placeholder="you@example.com"
                 required
               />
@@ -224,12 +249,15 @@ export default function SignupPage() {
                 Password
               </label>
               <input
+                ref={passwordInputRef}
                 id="password"
                 type="password"
                 autoComplete="new-password"
                 value={formData.password}
                 onChange={(e) => handlePasswordChange('password', e.target.value)}
-                className="w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                aria-invalid={error.includes('Password') && error.includes('8') ? 'true' : undefined}
+                aria-describedby={error.includes('Password') && error.includes('8') ? 'form-error' : undefined}
+                className="w-full min-h-[44px] bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
                 placeholder="At least 8 characters"
                 required
                 minLength={8}
@@ -241,19 +269,22 @@ export default function SignupPage() {
                 Confirm Password
               </label>
               <input
+                ref={confirmPasswordInputRef}
                 id="confirmPassword"
                 type="password"
                 autoComplete="new-password"
                 value={formData.confirmPassword}
                 onChange={(e) => handlePasswordChange('confirmPassword', e.target.value)}
-                className={`w-full bg-gray-50 border rounded-lg px-4 py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent ${
+                aria-invalid={passwordMismatch || error.includes('match') ? 'true' : undefined}
+                aria-describedby={passwordMismatch ? 'password-mismatch-error' : (error.includes('match') ? 'form-error' : undefined)}
+                className={`w-full min-h-[44px] bg-gray-50 border rounded-lg px-4 py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent ${
                   passwordMismatch ? 'border-red-300 bg-red-50' : 'border-gray-200'
                 }`}
                 placeholder="Confirm your password"
                 required
               />
               {passwordMismatch && (
-                <p className="mt-1 text-sm text-red-600">Passwords do not match</p>
+                <p id="password-mismatch-error" role="alert" className="mt-1 text-sm text-red-600">Passwords do not match</p>
               )}
             </div>
 
@@ -277,7 +308,7 @@ export default function SignupPage() {
                     type="text"
                     value={formData.promoCode}
                     onChange={(e) => setFormData({ ...formData, promoCode: e.target.value.toUpperCase() })}
-                    className={`w-full border rounded-lg px-4 py-3 placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent ${
+                    className={`w-full min-h-[44px] border rounded-lg px-4 py-3 placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent ${
                       isLifetimeCode
                         ? 'bg-green-50 border-green-300 text-green-800 focus:ring-green-500'
                         : hasInvalidCode
@@ -306,7 +337,7 @@ export default function SignupPage() {
             <button
               type="submit"
               disabled={isLoading || googleLoading}
-              className={`w-full py-3 rounded-lg font-semibold transition shadow-md text-white ${
+              className={`w-full min-h-[48px] py-3 rounded-lg font-semibold transition shadow-md text-white ${
                 isLifetimeCode
                   ? 'bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600'
                   : 'bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600'
@@ -338,6 +369,36 @@ export default function SignupPage() {
               Sign in
             </Link>
           </p>
+
+          {/* Bundle Upsell */}
+          <div className="mt-6 rounded-xl border border-orange-200 bg-orange-50/50 p-4">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center">
+                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-orange-900">
+                  Want all 3 apps? Save 33%
+                </p>
+                <p className="text-xs text-orange-700 mt-0.5">
+                  Get SafeTube + SafeTunes + SafeReads for just $9.99/mo instead of $14.97
+                </p>
+                <a
+                  href="https://getsafecontent.vercel.app/#pricing"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs font-medium text-orange-600 hover:text-orange-700 mt-2"
+                >
+                  Learn about the Safe Suite
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                </a>
+              </div>
+            </div>
+          </div>
 
           <div className="mt-6 pt-6 border-t border-gray-200">
             <p className="text-xs text-gray-500 text-center">
